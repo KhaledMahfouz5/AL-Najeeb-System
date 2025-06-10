@@ -1,168 +1,232 @@
 import sqlite3
 import csv
 import io
-# The 'flash' import is no longer needed
-from flask import Flask, render_template, request, redirect, url_for
+import re
+from flask import Flask, render_template, request, redirect, url_for, flash
 
-# Create a Flask application instance
+# --- App Setup ---
 app = Flask(__name__)
-# The 'secret_key' is no longer required as we are not using flash/sessions
-# app.secret_key = 'your_super_secret_key_12345'
-
+app.secret_key = 'your_super_secret_key_12345'
+app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$')  # Syrian phone format
 
 # --- Database Functions ---
-
 def get_db_connection():
-    """Creates and returns a connection to the SQLite database."""
     conn = sqlite3.connect('students.db')
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    """Initializes the database. THIS IS ONLY RUN MANUALLY from the command line."""
-    conn = get_db_connection()
-    with conn:
+    with get_db_connection() as conn:
         conn.execute('DROP TABLE IF EXISTS students')
         conn.execute('''
             CREATE TABLE students (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 student_name TEXT NOT NULL,
-                age INTEGER NOT NULL,
+                age INTEGER NOT NULL CHECK(age BETWEEN 5 AND 25),
                 parent_name TEXT NOT NULL,
-                parent_phone_1 TEXT NOT NULL,
-                parent_phone_2 TEXT,
-                student_phone TEXT,
+                parent_phone_1 TEXT NOT NULL CHECK(length(parent_phone_1) = 10),
+                parent_phone_2 TEXT CHECK(length(parent_phone_2) = 10 OR parent_phone_2 IS NULL),
+                student_phone TEXT CHECK(length(student_phone) = 10 OR student_phone IS NULL),
                 grade TEXT NOT NULL,
                 school_name TEXT NOT NULL,
                 address TEXT NOT NULL,
                 memorizing TEXT NOT NULL
             )
         ''')
-    print("Database initialized and 'students' table created with the new schema.")
+        # Add indexes for faster search
+        conn.execute('CREATE INDEX idx_student_name ON students(student_name)')
+        conn.execute('CREATE INDEX idx_parent_phone ON students(parent_phone_1)')
+    print("Database initialized with schema constraints and indexes")
 
 @app.cli.command('init-db')
 def init_db_command():
-    """Clears existing data and creates new tables."""
     init_db()
+    print("Database initialized successfully")
 
+# --- Validation Utilities ---
+def validate_phone(phone):
+    return bool(app.config['PHONE_REGEX'].match(phone)) if phone else True
+
+def validate_student_data(form_data, is_csv=False):
+    errors = []
+    required_fields = ['student_name', 'age', 'parent_name', 
+                      'parent_phone_1', 'grade', 'school_name', 
+                      'address', 'memorizing']
+
+    # Check required fields
+    for field in required_fields:
+        if not form_data.get(field):
+            errors.append(f"حقل '{field}' مطلوب")
+
+    # Validate phone formats
+    phones = [
+        ('parent_phone_1', form_data.get('parent_phone_1')),
+        ('parent_phone_2', form_data.get('parent_phone_2')),
+        ('student_phone', form_data.get('student_phone'))
+    ]
+    
+    for field, value in phones:
+        if value and not validate_phone(value):
+            errors.append(f"رقم الهاتف '{field}' غير صالح. يجب أن يكون 10 أرقام ويبدأ بـ 09")
+
+    # Validate age
+    try:
+        age = int(form_data.get('age', 0))
+        if not (5 <= age <= 25):
+            errors.append("العمر يجب أن يكون بين 5 و 25 سنة")
+    except ValueError:
+        errors.append("العمر يجب أن يكون رقماً صحيحاً")
+    
+    return errors
 
 # --- App Routes ---
-
 @app.route('/')
 def index():
-    """Renders the main page and displays any messages passed in the URL."""
-    # Get the message from the URL query parameters
-    message = request.args.get('message', None)
-    category = request.args.get('category', None)
-    
-    conn = get_db_connection()
-    students = conn.execute('SELECT * FROM students ORDER BY id').fetchall()
-    conn.close()
-    
-    # Pass the message and students to the template
-    return render_template('index.html', students=students, message=message, category=category)
-
-@app.route('/add', methods=['POST'])
-def add_student():
-    """Handles the form submission for adding a single new student."""
     try:
-        student_name = request.form['student_name']
-        age = request.form['age']
-        parent_name = request.form['parent_name']
-        parent_phone_1 = request.form['parent_phone_1']
-        parent_phone_2 = request.form.get('parent_phone_2')
-        student_phone = request.form.get('student_phone')
-        grade = request.form['grade']
-        school_name = request.form['school_name']
-        address = request.form['address']
-        memorizing = request.form['memorizing']
-        
-        if not all([student_name, age, parent_name, parent_phone_1, grade, school_name, address, memorizing]):
-             # Instead of flashing, redirect with a message
-             return redirect(url_for('index', message='الرجاء تعبئة جميع الحقول المطلوبة.', category='danger'))
+        with get_db_connection() as conn:
+            students = conn.execute('''
+                SELECT * FROM students 
+                ORDER BY student_name ASC
+            ''').fetchall()
+        return render_template('index.html', students=students)
+    except sqlite3.Error as e:
+        flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+        return render_template('index.html', students=[])
 
-        conn = get_db_connection()
-        conn.execute('''
-            INSERT INTO students (student_name, age, parent_name, parent_phone_1, parent_phone_2, student_phone, grade, school_name, address, memorizing)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ''', (student_name, age, parent_name, parent_phone_1, parent_phone_2, student_phone, grade, school_name, address, memorizing))
-        conn.commit()
-        conn.close()
+@app.route('/add_student', methods=['POST'])
+def add_student():
+    form_data = request.form
+    validation_errors = validate_student_data(form_data)
+    
+    if validation_errors:
+        for error in validation_errors:
+            flash(error, 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        student_data = (
+            form_data['student_name'],
+            int(form_data['age']),
+            form_data['parent_name'],
+            form_data['parent_phone_1'],
+            form_data.get('parent_phone_2') or None,
+            form_data.get('student_phone') or None,
+            form_data['grade'],
+            form_data['school_name'],
+            form_data['address'],
+            form_data['memorizing']
+        )
         
-        message = 'تمت إضافة الطالب الجديد بنجاح!'
-        category = 'success'
+        with get_db_connection() as conn:
+            conn.execute('''
+                INSERT INTO students (
+                    student_name, age, parent_name, 
+                    parent_phone_1, parent_phone_2, 
+                    student_phone, grade, school_name, 
+                    address, memorizing
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', student_data)
+            conn.commit()
+        
+        flash('تمت إضافة الطالب بنجاح!', 'success')
+        return redirect(url_for('index'))
+    
+    except sqlite3.IntegrityError as e:
+        flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
     except Exception as e:
-        message = f'حدث خطأ أثناء إضافة الطالب: {e}'
-        category = 'danger'
+        flash(f'خطأ غير متوقع: {str(e)}', 'danger')
+    
+    return redirect(url_for('index'))
 
-    return redirect(url_for('index', message=message, category=category))
-
-@app.route('/import', methods=['POST'])
+@app.route('/import_csv', methods=['POST'])
 def import_csv():
-    """Handles CSV import and redirects with a status message in the URL."""
-    if 'file' not in request.files or request.files['file'].filename == '':
-        return redirect(url_for('index', message='لم يتم اختيار أي ملف.', category='danger'))
-
+    if 'file' not in request.files:
+        flash('لم يتم تقديم ملف', 'danger')
+        return redirect(url_for('index'))
+    
     file = request.files['file']
-
-    if file and file.filename.endswith('.csv'):
-        students_to_add = [] # This is our "2D vector"
-        try:
-            stream = io.StringIO(file.stream.read().decode("utf-8-sig"), newline=None)
-            csv_reader = csv.reader(stream)
-            
-            # First, read all rows from CSV into the students_to_add list
-            for i, row in enumerate(csv_reader, start=1):
-                if len(row) != 10:
-                    msg = f'خطأ في ملف CSV في السطر رقم {i}: يجب أن يحتوي السطر على 10 أعمدة.'
-                    return redirect(url_for('index', message=msg, category='danger'))
-                try:
-                    # Validate and prepare the row data
-                    student_data = (
-                        row[0], int(row[1]), row[2], row[3],
-                        row[4] if row[4] else None, row[5] if row[5] else None,
-                        row[6], row[7], row[8], row[9]
-                    )
-                    students_to_add.append(student_data)
-                except ValueError:
-                    msg = f"خطأ في ملف CSV في السطر رقم {i}: يجب أن يكون العمر (العمود الثاني) رقماً."
-                    return redirect(url_for('index', message=msg, category='danger'))
-
-            # If the list was successfully built, proceed to add to the database
-            if students_to_add:
-                conn = get_db_connection()
-                # Use a try/except block for the database operation
-                try:
-                    # Now, loop through the "2D vector" and add each student one by one
-                    for student in students_to_add:
-                        conn.execute('''
-                            INSERT INTO students (student_name, age, parent_name, parent_phone_1, parent_phone_2, student_phone, grade, school_name, address, memorizing)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                        ''', student)
-                    
-                    # If all insertions succeed, commit them to the database
-                    conn.commit()
-                    message = f'تم استيراد وإضافة {len(students_to_add)} طالب بنجاح!'
-                    category = 'success'
-                except sqlite3.Error as e:
-                    # If any error occurs during insertion, the transaction is rolled back automatically
-                    message = f'حدث خطأ في قاعدة البيانات أثناء الإضافة: {e}'
-                    category = 'danger'
-                finally:
-                    # Always close the connection
-                    conn.close()
-            else:
-                message = 'ملف CSV فارغ أو لا يمكن معالجته.'
-                category = 'warning'
-
-        except Exception as e:
-            message = f'حدث خطأ غير متوقع أثناء عملية الاستيراد: {e}'
-            category = 'danger'
+    if file.filename == '':
+        flash('لم يتم اختيار ملف', 'warning')
+        return redirect(url_for('index'))
+    
+    if not file.filename.lower().endswith('.csv'):
+        flash('صيغة الملف غير مدعومة. يجب أن يكون CSV', 'danger')
+        return redirect(url_for('index'))
+    
+    try:
+        stream = io.TextIOWrapper(file.stream, encoding='utf-8-sig')
+        csv_reader = csv.reader(stream)
+        valid_rows = []
+        row_errors = []
         
-        return redirect(url_for('index', message=message, category=category))
-    else:
-        return redirect(url_for('index', message='صيغة الملف غير صالحة. الرجاء رفع ملف .csv فقط.', category='danger'))
-
+        for i, row in enumerate(csv_reader, 1):
+            if len(row) != 10:
+                row_errors.append(f'السطر {i}: عدد الأعمدة غير صحيح (10 مطلوبة)')
+                continue
+            
+            # Map CSV columns to form fields
+            student_data = {
+                'student_name': row[0].strip(),
+                'age': row[1].strip(),
+                'parent_name': row[2].strip(),
+                'parent_phone_1': row[3].strip(),
+                'parent_phone_2': row[4].strip(),
+                'student_phone': row[5].strip(),
+                'grade': row[6].strip(),
+                'school_name': row[7].strip(),
+                'address': row[8].strip(),
+                'memorizing': row[9].strip()
+            }
+            
+            # Validate row
+            errors = validate_student_data(student_data, is_csv=True)
+            if errors:
+                row_errors.append(f'السطر {i}: {"; ".join(errors)}')
+                continue
+            
+            # Prepare for insertion
+            valid_rows.append((
+                student_data['student_name'],
+                int(student_data['age']),
+                student_data['parent_name'],
+                student_data['parent_phone_1'],
+                student_data['parent_phone_2'] or None,
+                student_data['student_phone'] or None,
+                student_data['grade'],
+                student_data['school_name'],
+                student_data['address'],
+                student_data['memorizing']
+            ))
+        
+        # Process validation results
+        if row_errors:
+            flash(f'تم العثور على أخطاء في {len(row_errors)} سطراً', 'warning')
+            for error in row_errors[:5]:  # Show first 5 errors
+                flash(error, 'danger')
+            if len(row_errors) > 5:
+                flash(f'...و {len(row_errors)-5} أخطاء إضافية', 'danger')
+        
+        if valid_rows:
+            with get_db_connection() as conn:
+                conn.executemany('''
+                    INSERT INTO students (
+                        student_name, age, parent_name, 
+                        parent_phone_1, parent_phone_2, 
+                        student_phone, grade, school_name, 
+                        address, memorizing
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', valid_rows)
+                conn.commit()
+            flash(f'تم استيراد {len(valid_rows)} طالب بنجاح', 'success')
+        else:
+            flash('لم يتم استيراد أي سجلات', 'warning')
+            
+    except csv.Error as e:
+        flash(f'خطأ في معالجة CSV: {str(e)}', 'danger')
+    except Exception as e:
+        flash(f'خطأ غير متوقع: {str(e)}', 'danger')
+    
+    return redirect(url_for('index'))
 
 if __name__ == '__main__':
     app.run(debug=True)

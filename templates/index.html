@@ -4,49 +4,53 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>بيانات الطلاب</title>
-    <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts: Cairo for Arabic -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Cairo', sans-serif; }
+        /* Style for disabled buttons */
+        button:disabled {
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body class="bg-gray-50 text-gray-800">
 
     <div class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-6xl">
 
-        <!-- Display Messages passed via URL parameters -->
-        {% if message and category %}
-            <div class="mb-6 space-y-3">
-                {% set bg_color = 'bg-blue-100 border-blue-500 text-blue-700' %}
-                {% if category == 'success' %}{% set bg_color = 'bg-green-100 border-green-500 text-green-700' %}{% endif %}
-                {% if category == 'danger' %}{% set bg_color = 'bg-red-100 border-red-500 text-red-700' %}{% endif %}
-                {% if category == 'warning' %}{% set bg_color = 'bg-yellow-100 border-yellow-500 text-yellow-700' %}{% endif %}
-                <div class="{{ bg_color }} border-r-4 border-l-0 p-4 rounded-md shadow" role="alert">
+        <div class="mb-6 space-y-3" aria-live="polite" aria-atomic="true">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+              {% if messages %}
+                {% for category, message in messages %}
+                  {% set bg_color = 'bg-blue-100 border-blue-500 text-blue-700' %}
+                  {% if category == 'success' %}{% set bg_color = 'bg-green-100 border-green-500 text-green-700' %}{% endif %}
+                  {% if category == 'danger' %}{% set bg_color = 'bg-red-100 border-red-500 text-red-700' %}{% endif %}
+                  {% if category == 'warning' %}{% set bg_color = 'bg-yellow-100 border-yellow-500 text-yellow-700' %}{% endif %}
+                  <div class="{{ bg_color }} border-r-4 border-l-0 p-4 rounded-md shadow" role="alert">
                     <p class="font-bold">{{ message }}</p>
-                </div>
-            </div>
-        {% endif %}
+                  </div>
+                {% endfor %}
+              {% endif %}
+            {% endwith %}
+        </div>
 
-        <!-- Header -->
         <header class="text-center mb-8">
             <h1 class="text-3xl sm:text-4xl font-bold text-gray-900">نظام إدارة الطلاب</h1>
             <p class="text-gray-600 mt-2">أدخل بيانات الطلاب يدوياً أو قم باستيراد ملف CSV.</p>
         </header>
 
-        <!-- Manual Add Student Form (Initially Hidden) -->
-        <div id="add-student-form" class="bg-white p-8 rounded-xl shadow-lg mb-8 hidden">
+        <div id="add-student-section" class="bg-white p-8 rounded-xl shadow-lg mb-8 hidden">
             <h2 class="text-2xl font-semibold mb-6 text-gray-800 border-b pb-4">إضافة طالب جديد</h2>
-            <form action="{{ url_for('add_student') }}" method="POST">
+            <form id="add-student-form" action="{{ url_for('add_student') }}" method="POST">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
                     <div>
                         <label for="student_name" class="block text-sm font-medium text-gray-700 mb-1">اسم الطالب</label>
                         <input type="text" name="student_name" id="student_name" placeholder="الاسم الكامل" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                     <div>
+                    <div>
                         <label for="age" class="block text-sm font-medium text-gray-700 mb-1">العمر</label>
                         <input type="number" name="age" id="age" placeholder="مثال: 15" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
@@ -54,7 +58,7 @@
                         <label for="parent_name" class="block text-sm font-medium text-gray-700 mb-1">اسم ولي الأمر</label>
                         <input type="text" name="parent_name" id="parent_name" placeholder="الاسم الكامل لولي الأمر" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                     <div>
+                    <div>
                         <label for="parent_phone_1" class="block text-sm font-medium text-gray-700 mb-1">هاتف ولي الأمر 1 (مطلوب)</label>
                         <input type="tel" name="parent_phone_1" id="parent_phone_1" placeholder="مثال: 09xxxxxxxx" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
@@ -74,65 +78,59 @@
                         <label for="school_name" class="block text-sm font-medium text-gray-700 mb-1">اسم المدرسة</label>
                         <input type="text" name="school_name" id="school_name" placeholder="مثال: مدرسة المستقبل" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                    <div>
+                    <div class="md:col-span-2">
                         <label for="address" class="block text-sm font-medium text-gray-700 mb-1">العنوان</label>
                         <input type="text" name="address" id="address" placeholder="الشارع، المدينة" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
-                     <div>
+                    <div class="md:col-span-2">
                         <label for="memorizing" class="block text-sm font-medium text-gray-700 mb-1">المحفوظات</label>
                         <input type="text" name="memorizing" id="memorizing" placeholder="مثال: القرآن، جزء عم" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                     </div>
                 </div>
                 <div class="mt-8 text-left">
-                    <button type="submit" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                    <button type="submit" id="submit-add-button" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
                         حفظ بيانات الطالب
                     </button>
                 </div>
             </form>
         </div>
         
-        <!-- CSV Import Section -->
         <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
             <h2 class="text-2xl font-semibold mb-4 text-gray-800 border-b pb-4">استيراد من ملف CSV</h2>
-             <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm p-4 rounded-lg mt-4">
+            <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm p-4 rounded-lg mt-4">
                 <p class="font-bold">هام: تنسيق ملف CSV</p>
                 <p>يجب أن يكون الملف بصيغة CSV ومرمّزاً بترميز UTF-8.</p>
                 <p>يجب **ألا يحتوي** الملف على صف للعناوين، ويجب أن تكون الأعمدة بالترتيب الدقيق التالي:</p>
                 <p class="mt-2" style="direction: ltr; text-align: right;">
-                  <code class="text-xs font-mono">اسم الطالب, العمر, اسم ولي الأمر, هاتف ولي الأمر 1, هاتف ولي الأمر 2, هاتف الطالب, الصف, اسم المدرسة, العنوان, المحفوظات</code>
+                    <code class="text-xs font-mono">اسم الطالب, العمر, اسم ولي الأمر, هاتف ولي الأمر 1, هاتف ولي الأمر 2, هاتف الطالب, الصف, اسم المدرسة, العنوان, المحفوظات</code>
                 </p>
                 <p>إذا كانت الحقول الاختيارية (هاتف ولي الأمر 2، هاتف الطالب) فارغة، اتركها كذلك.</p>
             </div>
-             <div class="mt-6 text-left">
+            <div class="mt-6 text-left">
                 <form id="import-form" action="{{ url_for('import_csv') }}" method="POST" enctype="multipart/form-data">
-                    <!-- Hidden file input -->
                     <input type="file" name="file" id="csv-file-input" class="hidden" required accept=".csv">
 
-                    <!-- Button to trigger file selection -->
-                    <button type="button" id="choose-file-button" class="px-8 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
+                    <button type="button" id="choose-file-button" class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
                         اختر ملف
                     </button>
 
-                    <!-- Span to display the selected file name -->
                     <span id="file-name-display" class="hidden ml-4 text-gray-700"></span>
 
-                    <!-- Submit button, initially hidden -->
-                    <button type="submit" id="submit-import-button" class="hidden px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
+                    <button type="submit" id="submit-import-button" class="hidden px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
                         تأكيد ورفع الملف
                     </button>
                 </form>
             </div>
         </div>
 
-        <!-- Student List Table -->
         <div class="bg-white p-6 rounded-xl shadow-lg">
-             <div class="flex justify-between items-center mb-4 pb-4 border-b">
+            <div class="flex justify-between items-center mb-4 pb-4 border-b">
                 <h2 class="text-2xl font-semibold text-gray-800">الطلاب المسجلون</h2>
                 <button id="add-manually-button" class="px-6 py-2 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
                     إضافة يدوية
                 </button>
-             </div>
-             <div class="overflow-x-auto">
+            </div>
+            <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200 text-right">
                     <thead class="bg-gray-50">
                         <tr>
@@ -156,9 +154,9 @@
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['parent_name'] }}</td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                                 <div class="flex flex-col">
-                                   <span>ولي الأمر 1: {{ student['parent_phone_1'] }}</span>
-                                   {% if student['parent_phone_2'] %}<span>ولي الأمر 2: {{ student['parent_phone_2'] }}</span>{% endif %}
-                                   {% if student['student_phone'] %}<span>الطالب: {{ student['student_phone'] }}</span>{% endif %}
+                                    <span>ولي الأمر 1: {{ student['parent_phone_1'] }}</span>
+                                    {% if student['parent_phone_2'] %}<span>ولي الأمر 2: {{ student['parent_phone_2'] }}</span>{% endif %}
+                                    {% if student['student_phone'] %}<span>الطالب: {{ student['student_phone'] }}</span>{% endif %}
                                 </div>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['grade'] }}</td>
@@ -168,7 +166,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                           <td colspan="9" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td>
+                            <td colspan="10" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -182,35 +180,56 @@
         // Get references to all necessary elements
         const csvFileInput = document.getElementById('csv-file-input');
         const chooseFileButton = document.getElementById('choose-file-button');
-        const submitImportButton = document.getElementById('submit-import-button');
         const fileNameDisplay = document.getElementById('file-name-display');
+        const submitImportButton = document.getElementById('submit-import-button'); // Added for clarity
         const addManuallyButton = document.getElementById('add-manually-button');
+        const addStudentSection = document.getElementById('add-student-section');
         const addStudentForm = document.getElementById('add-student-form');
+        const importForm = document.getElementById('import-form');
+        const submitAddButton = document.getElementById('submit-add-button'); // Added for clarity
 
-        // When the "Choose File" button is clicked, trigger the hidden file input
+        // When the "Choose File" button is clicked, it programmatically clicks the hidden file input.
         chooseFileButton.addEventListener('click', () => {
             csvFileInput.click();
         });
 
-        // When a file is selected in the hidden input...
+        // When a file is selected using the file input...
         csvFileInput.addEventListener('change', () => {
             if (csvFileInput.files.length > 0) {
-                // Get the name of the selected file
                 const fileName = csvFileInput.files[0].name;
                 fileNameDisplay.textContent = `الملف المختار: ${fileName}`;
                 
-                // Show the file name and the submit button
+                // Show the file name display and the submit button
                 fileNameDisplay.classList.remove('hidden');
                 submitImportButton.classList.remove('hidden');
                 
-                // Hide the original "Choose File" button
+                // Hide the original "Choose File" button to avoid confusion
                 chooseFileButton.classList.add('hidden');
+            } else {
+                // If no file is selected (e.g., user cancels file dialog)
+                fileNameDisplay.classList.add('hidden');
+                submitImportButton.classList.add('hidden');
+                chooseFileButton.classList.remove('hidden');
             }
         });
 
         // Toggle the visibility of the "Add New Student" form
         addManuallyButton.addEventListener('click', () => {
-            addStudentForm.classList.toggle('hidden');
+            addStudentSection.classList.toggle('hidden');
+        });
+
+        // --- Prevent Double Submissions ---
+
+        // For the CSV Import Form
+        importForm.addEventListener('submit', () => {
+            submitImportButton.disabled = true;
+            submitImportButton.textContent = 'جاري الرفع...'; // "Uploading..."
+        });
+
+        // For the Manual Add Student Form
+        addStudentForm.addEventListener('submit', () => {
+            submitAddButton.disabled = true;
+            submitAddButton.textContent = 'جاري الحفظ...'; // "Saving..."
         });
     </script>
 </body>
