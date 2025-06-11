@@ -7,7 +7,7 @@ from flask import Flask, render_template, request, redirect, url_for, flash, sen
 # --- App Setup ---
 app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_12345'
-app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$')  # Syrian phone format
+app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$') # Syrian phone format
 
 # --- Database Functions ---
 def get_db_connection():
@@ -138,6 +138,83 @@ def add_student():
     
     return redirect(url_for('index'))
 
+@app.route('/modify_student/<int:student_id>', methods=['GET', 'POST'])
+def modify_student(student_id):
+    if request.method == 'GET':
+        # Display the modification form
+        try:
+            with get_db_connection() as conn:
+                student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+            
+            if student is None:
+                flash('الطالب غير موجود.', 'danger')
+                return redirect(url_for('index'))
+            
+            return render_template('modify_info.html', student=student)
+        except sqlite3.Error as e:
+            flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+            return redirect(url_for('index'))
+    
+    elif request.method == 'POST':
+        # Process the modification form submission
+        form_data = request.form
+        validation_errors = validate_student_data(form_data)
+        
+        if validation_errors:
+            for error in validation_errors:
+                flash(error, 'danger')
+            # Fetch student again to re-render form with current data and errors
+            try:
+                with get_db_connection() as conn:
+                    student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+                return render_template('modify_info.html', student=student)
+            except sqlite3.Error as e:
+                flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+                return redirect(url_for('index'))
+        
+        try:
+            student_data = (
+                form_data['student_name'],
+                int(form_data['age']),
+                form_data['parent_name'],
+                form_data['parent_phone_1'],
+                form_data.get('parent_phone_2') or None,
+                form_data.get('student_phone') or None,
+                form_data['grade'],
+                form_data['school_name'],
+                form_data['address'],
+                form_data['memorizing'],
+                student_id # The ID is the last parameter for the WHERE clause
+            )
+            
+            with get_db_connection() as conn:
+                conn.execute('''
+                    UPDATE students SET
+                        student_name = ?,
+                        age = ?,
+                        parent_name = ?,
+                        parent_phone_1 = ?,
+                        parent_phone_2 = ?,
+                        student_phone = ?,
+                        grade = ?,
+                        school_name = ?,
+                        address = ?,
+                        memorizing = ?
+                    WHERE id = ?
+                ''', student_data)
+                conn.commit()
+            
+            flash('تم تحديث بيانات الطالب بنجاح!', 'success')
+            return redirect(url_for('index'))
+        
+        except sqlite3.IntegrityError as e:
+            flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+        except Exception as e:
+            flash(f'خطأ غير متوقع: {str(e)}', 'danger')
+        
+        return redirect(url_for('index'))
+
+
 @app.route('/import_csv', methods=['POST'])
 def import_csv():
     if 'file' not in request.files:
@@ -202,11 +279,11 @@ def import_csv():
         # Process validation results
         if row_errors:
             flash(f'تم العثور على أخطاء في {len(row_errors)} سطراً', 'warning')
-            for error in row_errors[:5]:  # Show first 5 errors
+            for error in row_errors[:5]: # Show first 5 errors
                 flash(error, 'danger')
             if len(row_errors) > 5:
                 flash(f'...و {len(row_errors)-5} أخطاء إضافية', 'danger')
-        
+            
         if valid_rows:
             with get_db_connection() as conn:
                 conn.executemany('''
@@ -248,3 +325,4 @@ def points():
 
 if __name__ == '__main__':
     app.run(debug=True)
+
