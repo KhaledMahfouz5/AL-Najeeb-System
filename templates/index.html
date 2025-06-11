@@ -96,6 +96,13 @@
                 إضافة يدوية
             </button>
         </div>
+        
+        {# Search input box for fuzzy finding #}
+        <div class="mb-6">
+            <label for="search-input" class="sr-only">البحث عن طالب</label>
+            <input type="text" id="search-input" placeholder="ابحث عن طالب بالاسم أو ولي الأمر..." class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" dir="rtl">
+        </div>
+
         <div class="overflow-x-auto">
             <table class="min-w-full divide-y divide-gray-200 text-right">
                 <thead class="bg-gray-50">
@@ -111,7 +118,7 @@
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المحفوظات</th>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-gray-200" id="students-table-body">
                     {% for student in students %}
                     <tr class="hover:bg-gray-50 transition-colors duration-200">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ student['id'] }}</td>
@@ -131,12 +138,16 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['memorizing'] }}</td>
                     </tr>
                     {% else %}
-                    <tr>
+                    <tr id="no-students-row">
                         <td colspan="10" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+            {# Message to display when no search results are found #}
+            <div id="no-search-results" class="text-center py-6 text-gray-500 hidden">
+                لا توجد نتائج بحث مطابقة.
+            </div>
         </div>
     </div>
 
@@ -151,6 +162,129 @@
         const addStudentForm = document.getElementById('add-student-form');
         const importForm = document.getElementById('import-form');
         const submitAddButton = document.getElementById('submit-add-button');
+
+        // New elements for search functionality
+        const searchInput = document.getElementById('search-input');
+        const studentsTableBody = document.getElementById('students-table-body');
+        const noStudentsRow = document.getElementById('no-students-row');
+        const noSearchResultsDiv = document.getElementById('no-search-results');
+
+        // Store original student data and row elements for efficient filtering and restoration
+        const allStudentData = [];
+        studentsTableBody.querySelectorAll('tr').forEach(row => {
+            if (row.id === 'no-students-row') {
+                return; // Skip the "no students" row from data processing
+            }
+            allStudentData.push({
+                element: row,
+                student_name: row.children[1] ? row.children[1].textContent : '',
+                parent_name: row.children[3] ? row.children[3].textContent : '',
+                // Store original HTML of potentially highlighted cells to restore them later
+                originalStudentNameHTML: row.children[1] ? row.children[1].innerHTML : '',
+                originalParentNameHTML: row.children[3] ? row.children[3].innerHTML : ''
+            });
+        });
+
+        // Function to perform a fuzzy match
+        // Checks if all characters of the pattern exist sequentially in the text, allowing for other characters in between.
+        function fuzzyMatch(pattern, text) {
+            pattern = pattern.toLowerCase();
+            text = text.toLowerCase();
+            let patternIdx = 0;
+            let textIdx = 0;
+
+            while (patternIdx < pattern.length && textIdx < text.length) {
+                if (pattern[patternIdx] === text[textIdx]) {
+                    patternIdx++;
+                }
+                textIdx++;
+            }
+            return patternIdx === pattern.length;
+        }
+
+        // Function to highlight occurrences of a term within text
+        function highlightText(text, term) {
+            if (!term) return text;
+            // Escape special characters in the term to be used in regex
+            const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            // Use a regular expression with 'gi' for global and case-insensitive matching
+            const regex = new RegExp(escapedTerm, 'gi');
+            // Replace all occurrences of the term with the highlighted version
+            return text.replace(regex, match => `<span class="highlight">${match}</span>`);
+        }
+
+        // Function to filter students based on search input
+        function filterStudents() {
+            const searchTerm = searchInput.value.trim();
+            let foundResults = 0;
+
+            // Hide the "no students" row if it exists
+            if (noStudentsRow) {
+                noStudentsRow.classList.add('hidden');
+            }
+
+            if (searchTerm === '') {
+                // If search term is empty, show all rows and restore their original content
+                allStudentData.forEach(data => {
+                    data.element.classList.remove('hidden');
+                    // Restore original HTML for highlighted cells
+                    if (data.element.children[1]) {
+                        data.element.children[1].innerHTML = data.originalStudentNameHTML;
+                    }
+                    if (data.element.children[3]) {
+                        data.element.children[3].innerHTML = data.originalParentNameHTML;
+                    }
+                });
+                noSearchResultsDiv.classList.add('hidden'); // Hide no results message
+                // If there were no students initially (allStudentData is empty), show the "no students" row again
+                if (noStudentsRow && allStudentData.length === 0) {
+                    noStudentsRow.classList.remove('hidden');
+                }
+                return;
+            }
+
+            // Iterate through the stored student data
+            allStudentData.forEach(data => {
+                const studentName = data.student_name;
+                const parentName = data.parent_name;
+
+                // Perform fuzzy search ONLY on student name or parent name
+                const isMatch = fuzzyMatch(searchTerm, studentName) || fuzzyMatch(searchTerm, parentName);
+
+                if (isMatch) {
+                    data.element.classList.remove('hidden'); // Show the row
+                    foundResults++;
+
+                    // Apply highlighting to the student name cell
+                    if (data.element.children[1]) {
+                        data.element.children[1].innerHTML = highlightText(studentName, searchTerm);
+                    }
+                    // Apply highlighting to the parent name cell
+                    if (data.element.children[3]) {
+                        data.element.children[3].innerHTML = highlightText(parentName, searchTerm);
+                    }
+                } else {
+                    data.element.classList.add('hidden'); // Hide the row
+                    // Restore original content if the row is hidden
+                    if (data.element.children[1]) {
+                        data.element.children[1].innerHTML = data.originalStudentNameHTML;
+                    }
+                    if (data.element.children[3]) {
+                        data.element.children[3].innerHTML = data.originalParentNameHTML;
+                    }
+                }
+            });
+
+            // Show/hide the "no search results" message based on found results
+            if (foundResults > 0) {
+                noSearchResultsDiv.classList.add('hidden');
+            } else {
+                noSearchResultsDiv.classList.remove('hidden');
+            }
+        }
+
+        // Event listener for the search input
+        searchInput.addEventListener('input', filterStudents);
 
         // When the "Choose File" button is clicked, it programmatically clicks the hidden file input.
         chooseFileButton.addEventListener('click', () => {
