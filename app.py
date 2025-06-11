@@ -191,7 +191,8 @@ def import_csv():
                 student_data['parent_name'],
                 student_data['parent_phone_1'],
                 student_data['parent_phone_2'] or None,
-                student_data['student_phone'] or None,
+                student_data['student_phone']
+                 or None,
                 student_data['grade'],
                 student_data['school_name'],
                 student_data['address'],
@@ -228,12 +229,22 @@ def import_csv():
     
     return redirect(url_for('index'))
 
-# New route to download the CSV template
+# Route to download the CSV template
 @app.route('/download_csv_template')
 def download_csv_template():
     # The directory where the template.csv is located (your templates folder)
     # The second argument is the filename to be sent
     return send_from_directory(app.template_folder, 'template.csv', as_attachment=True)
+
+# Route for the "تسجيل حضور أو حفظ" page
+@app.route('/record')
+def record():
+    return render_template('record.html')
+
+# Route for the "النقاط" page
+@app.route('/points')
+def points():
+    return render_template('points.html')
 
 if __name__ == '__main__':
     app.run(debug=True)

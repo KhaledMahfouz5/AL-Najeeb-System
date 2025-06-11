@@ -1,0 +1,31 @@
+{% extends 'template.html' %}
+
+{% block title %}تسجيل حضور أو حفظ{% endblock %}
+
+{% block content %}
+    <header class="text-center"> {# Removed mb-8 from header, now handled by h1 and nav #}
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">تسجيل حضور الطلاب وحفظ المحفوظات</h1> {# Added mb-6 for spacing below title #}
+        {# Navigation Bar - More Eye-Attractive Styling #}
+        <nav class="mb-8"> {# Kept mb-8 for space below nav #}
+            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex"> {# Added padding, background, rounded corners, shadow, and inline-flex for better alignment #}
+                <li>
+                    {# Inactive link styling #}
+                    <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">الصفحة الرئيسية</a>
+                </li>
+                <li>
+                    {# Active link styling #}
+                    <a href="{{ url_for('record') }}" class="text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-3 rounded-full transition-all duration-300 ease-in-out shadow-md">تسجيل حضور أو حفظ</a>
+                </li>
+                <li>
+                    {# Inactive link styling #}
+                    <a href="{{ url_for('points') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">النقاط</a>
+                </li>
+            </ul>
+        </nav>
+    </header>
+
+    <div class="bg-white p-8 rounded-xl shadow-lg mb-8">
+        <p class="text-gray-600 text-center">هذه صفحة لتسجيل حضور الطلاب وتحديث تقدمهم في حفظ المحفوظات.</p>
+        {# Content for attendance/memorization recording will go here #}
+    </div>
+{% endblock %}
