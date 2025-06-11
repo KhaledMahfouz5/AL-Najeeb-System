@@ -2,7 +2,7 @@ import sqlite3
 import csv
 import io
 import re
-from flask import Flask, render_template, request, redirect, url_for, flash
+from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -50,8 +50,8 @@ def validate_phone(phone):
 def validate_student_data(form_data, is_csv=False):
     errors = []
     required_fields = ['student_name', 'age', 'parent_name', 
-                      'parent_phone_1', 'grade', 'school_name', 
-                      'address', 'memorizing']
+                       'parent_phone_1', 'grade', 'school_name', 
+                       'address', 'memorizing']
 
     # Check required fields
     for field in required_fields:
@@ -197,7 +197,7 @@ def import_csv():
                 student_data['address'],
                 student_data['memorizing']
             ))
-        
+            
         # Process validation results
         if row_errors:
             flash(f'تم العثور على أخطاء في {len(row_errors)} سطراً', 'warning')
@@ -227,6 +227,13 @@ def import_csv():
         flash(f'خطأ غير متوقع: {str(e)}', 'danger')
     
     return redirect(url_for('index'))
+
+# New route to download the CSV template
+@app.route('/download_csv_template')
+def download_csv_template():
+    # The directory where the template.csv is located (your templates folder)
+    # The second argument is the filename to be sent
+    return send_from_directory(app.template_folder, 'template.csv', as_attachment=True)
 
 if __name__ == '__main__':
     app.run(debug=True)
