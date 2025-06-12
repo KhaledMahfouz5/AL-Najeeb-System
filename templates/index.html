@@ -131,6 +131,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الطالب</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">العمر</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ولي الأمر</th>
@@ -139,13 +140,18 @@
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المدرسة</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">العنوان</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المحفوظات</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th> {# New header for actions #}
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="students-table-body">
                     {% for student in students %}
                     <tr class="hover:bg-gray-50 transition-colors duration-200">
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ student['id'] }}</td>
+			<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ loop.index }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                            <a href="{{ url_for('modify_student', student_id=student['id']) }}" class="text-indigo-600 hover:text-indigo-900">
+                                <i class="fas fa-pen"></i> {# Pen icon #}
+                            </a>
+                            {# You can add a delete button here later if needed #}
+                        </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student['student_name'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['age'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['parent_name'] }}</td>
@@ -160,13 +166,6 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['school_name'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['address'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['memorizing'] }}</td>
-                        {# New column for actions #}
-                        <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ url_for('modify_student', student_id=student['id']) }}" class="text-indigo-600 hover:text-indigo-900">
-                                <i class="fas fa-pen"></i> {# Pen icon #}
-                            </a>
-                            {# You can add a delete button here later if needed #}
-                        </td>
                     </tr>
                     {% else %}
                     <tr id="no-students-row">

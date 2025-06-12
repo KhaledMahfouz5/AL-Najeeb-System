@@ -35,7 +35,7 @@ def init_db():
         ''')
         # Add indexes for faster search
         conn.execute('CREATE INDEX idx_student_name ON students(student_name)')
-        conn.execute('CREATE INDEX idx_parent_phone ON students(parent_phone_1)')
+        conn.execute('CREATE INDEX idx_parent_name ON students(parent_name)')
     print("Database initialized with schema constraints and indexes")
 
 @app.cli.command('init-db')
