@@ -5,7 +5,7 @@
 {% block content %}
     <header class="text-center"> {# Removed mb-8 from header, now handled by h1 and nav #}
         <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">نظام إدارة الطلاب</h1> {# Added mb-6 for spacing below title #}
-        
+
         {# Navigation Bar - More Eye-Attractive Styling #}
         <nav class="mb-8"> {# Kept mb-8 for space below nav #}
             <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex"> {# Added padding, background, rounded corners, shadow, and inline-flex for better alignment #}
@@ -77,7 +77,7 @@
             </div>
         </form>
     </div>
-    
+
     <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
         <h2 class="text-2xl font-semibold mb-4 text-gray-800 border-b pb-4">استيراد من ملف CSV</h2>
         <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm p-4 rounded-lg mt-4">
@@ -119,7 +119,7 @@
                 إضافة يدوية
             </button>
         </div>
-        
+
         {# Search input box for fuzzy finding #}
         <div class="mb-6">
             <label for="search-input" class="sr-only">البحث عن طالب</label>
@@ -131,7 +131,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th> {# Moved this header here #}
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الطالب</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">العمر</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ولي الأمر</th>
@@ -145,12 +145,21 @@
                 <tbody class="bg-white divide-y divide-gray-200" id="students-table-body">
                     {% for student in students %}
                     <tr class="hover:bg-gray-50 transition-colors duration-200">
-			<td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ loop.index }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ loop.index }}</td>
+                        {# Moved the actions column here #}
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                            <a href="{{ url_for('modify_student', student_id=student['id']) }}" class="text-indigo-600 hover:text-indigo-900">
-                                <i class="fas fa-pen"></i> {# Pen icon #}
+                            <a href="{{ url_for('modify_student', student_id=student['id']) }}" class="text-indigo-600 hover:text-indigo-900 mx-1">
+                                <i class="fas fa-pen" title="تعديل"></i> {# Pen icon #}
                             </a>
-                            {# You can add a delete button here later if needed #}
+                            <a href="#" onclick="confirmDelete({{ student['id'] }}, '{{ student['student_name'] }}')" class="text-red-600 hover:text-red-900 mx-1">
+                                <i class="fas fa-trash-alt" title="حذف"></i> {# Trash can icon #}
+                            </a>
+                            {# A hidden form for deletion, used by JavaScript.
+                                In a real application, consider adding a CSRF token for security. #}
+                            <form id="delete-form-{{ student['id'] }}" action="{{ url_for('delete_student', student_id=student['id']) }}" method="POST" style="display: none;">
+                                {# Example for CSRF token (requires Flask-WTF or similar setup): #}
+                                {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
+                            </form>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student['student_name'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['age'] }}</td>
@@ -206,11 +215,11 @@
             }
             allStudentData.push({
                 element: row,
-                student_name: row.children[1] ? row.children[1].textContent : '',
-                parent_name: row.children[3] ? row.children[3].textContent : '',
+                student_name: row.children[2] ? row.children[2].textContent : '', // Adjusted index for student_name
+                parent_name: row.children[4] ? row.children[4].textContent : '', // Adjusted index for parent_name
                 // Store original HTML of potentially highlighted cells to restore them later
-                originalStudentNameHTML: row.children[1] ? row.children[1].innerHTML : '',
-                originalParentNameHTML: row.children[3] ? row.children[3].innerHTML : ''
+                originalStudentNameHTML: row.children[2] ? row.children[2].innerHTML : '', // Adjusted index
+                originalParentNameHTML: row.children[4] ? row.children[4].innerHTML : '' // Adjusted index
             });
         });
 
@@ -257,11 +266,11 @@
                 allStudentData.forEach(data => {
                     data.element.classList.remove('hidden');
                     // Restore original HTML for highlighted cells
-                    if (data.element.children[1]) {
-                        data.element.children[1].innerHTML = data.originalStudentNameHTML;
+                    if (data.element.children[2]) { // Adjusted index
+                        data.element.children[2].innerHTML = data.originalStudentNameHTML;
                     }
-                    if (data.element.children[3]) {
-                        data.element.children[3].innerHTML = data.originalParentNameHTML;
+                    if (data.element.children[4]) { // Adjusted index
+                        data.element.children[4].innerHTML = data.originalParentNameHTML;
                     }
                 });
                 noSearchResultsDiv.classList.add('hidden'); // Hide no results message
@@ -285,21 +294,21 @@
                     foundResults++;
 
                     // Apply highlighting to the student name cell
-                    if (data.element.children[1]) {
-                        data.element.children[1].innerHTML = highlightText(studentName, searchTerm);
+                    if (data.element.children[2]) { // Adjusted index
+                        data.element.children[2].innerHTML = highlightText(studentName, searchTerm);
                     }
                     // Apply highlighting to the parent name cell
-                    if (data.element.children[3]) {
-                        data.element.children[3].innerHTML = highlightText(parentName, searchTerm);
+                    if (data.element.children[4]) { // Adjusted index
+                        data.element.children[4].innerHTML = highlightText(parentName, searchTerm);
                     }
                 } else {
                     data.element.classList.add('hidden'); // Hide the row
                     // Restore original content if the row is hidden
-                    if (data.element.children[1]) {
-                        data.element.children[1].innerHTML = data.originalStudentNameHTML;
+                    if (data.element.children[2]) { // Adjusted index
+                        data.element.children[2].innerHTML = data.originalStudentNameHTML;
                     }
-                    if (data.element.children[3]) {
-                        data.element.children[3].innerHTML = data.originalParentNameHTML;
+                    if (data.element.children[4]) { // Adjusted index
+                        data.element.children[4].innerHTML = data.originalParentNameHTML;
                     }
                 }
             });
@@ -325,11 +334,11 @@
             if (csvFileInput.files.length > 0) {
                 const fileName = csvFileInput.files[0].name;
                 fileNameDisplay.textContent = `الملف المختار: ${fileName}`;
-                
+
                 // Show the file name display and the submit button
                 fileNameDisplay.classList.remove('hidden');
                 submitImportButton.classList.remove('hidden');
-                
+
                 // Hide the original "Choose File" button to avoid confusion
                 chooseFileButton.classList.add('hidden');
             } else {
@@ -358,5 +367,13 @@
             submitAddButton.disabled = true;
             submitAddButton.textContent = 'جاري الحفظ...'; // "Saving..."
         });
+
+        // --- New JavaScript for Delete Confirmation ---
+        function confirmDelete(studentId, studentName) {
+            if (confirm(`هل أنت متأكد أنك تريد حذف الطالب "${studentName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
+                // If confirmed, submit the hidden form for deletion
+                document.getElementById(`delete-form-${studentId}`).submit();
+            }
+        }
     </script>
 {% endblock %}

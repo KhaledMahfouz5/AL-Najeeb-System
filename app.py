@@ -214,6 +214,25 @@ def modify_student(student_id):
         
         return redirect(url_for('index'))
 
+@app.route('/delete_student/<int:student_id>', methods=['POST'])
+def delete_student(student_id):
+    try:
+        with get_db_connection() as conn:
+            # First, check if the student exists
+            student = conn.execute('SELECT id FROM students WHERE id = ?', (student_id,)).fetchone()
+            if student is None:
+                flash('الطالب غير موجود.', 'danger')
+                return redirect(url_for('index'))
+
+            conn.execute('DELETE FROM students WHERE id = ?', (student_id,))
+            conn.commit()
+            flash('تم حذف الطالب بنجاح!', 'success')
+    except sqlite3.Error as e:
+        flash(f'خطأ في قاعدة البيانات أثناء الحذف: {str(e)}', 'danger')
+    except Exception as e:
+        flash(f'خطأ غير متوقع أثناء الحذف: {str(e)}', 'danger')
+
+    return redirect(url_for('index'))
 
 @app.route('/import_csv', methods=['POST'])
 def import_csv():
