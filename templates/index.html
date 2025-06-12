@@ -69,6 +69,14 @@
                     <label for="memorizing" class="block text-sm font-medium text-gray-700 mb-1">المحفوظات</label>
                     <input type="text" name="memorizing" id="memorizing" placeholder="مثال: القرآن، جزء عم" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
+                 <div class="md:col-span-2">
+                    <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات (اختياري)</label>
+                    <textarea name="notes" id="notes" rows="3" placeholder="أضف أي ملاحظات إضافية هنا..." class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                <div class="md:col-span-2">
+                    <label for="registration_date" class="block text-sm font-medium text-gray-700 mb-1">تاريخ التسجيل (اختياري، الافتراضي هو اليوم)</label>
+                    <input type="date" name="registration_date" id="registration_date" class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
             </div>
             <div class="mt-8 text-left">
                 <button type="submit" id="submit-add-button" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all">
@@ -85,9 +93,9 @@
             <p>يجب أن يكون الملف بصيغة CSV ومرمّزاً بترميز UTF-8.</p>
             <p>يجب **ألا يحتوي** الملف على صف للعناوين، ويجب أن تكون الأعمدة بالترتيب الدقيق التالي:</p>
             <p class="mt-2" style="direction: ltr; text-align: right;">
-                <code class="text-xs font-mono">اسم الطالب, العمر, اسم ولي الأمر, هاتف ولي الأمر 1, هاتف ولي الأمر 2, هاتف الطالب, الصف, اسم المدرسة, العنوان, المحفوظات</code>
+                <code class="text-xs font-mono">اسم الطالب, العمر, اسم ولي الأمر, هاتف ولي الأمر 1, هاتف ولي الأمر 2, هاتف الطالب, الصف, اسم المدرسة, العنوان, المحفوظات, الملاحظات, تاريخ التسجيل</code>
             </p>
-            <p>إذا كانت الحقول الاختيارية (هاتف ولي الأمر 2، هاتف الطالب) فارغة، اتركها كذلك.</p>
+            <p>إذا كانت الحقول الاختيارية (هاتف ولي الأمر 2، هاتف الطالب، الملاحظات، تاريخ التسجيل) فارغة، اتركها كذلك. تاريخ التسجيل سيُعيّن تلقائياً لليوم الحالي إذا تُرِك فارغاً.</p>
             {# Added link to download CSV template #}
             <p class="mt-3">
                 <a href="{{ url_for('download_csv_template') }}" class="text-blue-600 hover:underline font-semibold" download>
@@ -131,7 +139,7 @@
                 <thead class="bg-gray-50">
                     <tr>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th> {# Moved this header here #}
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الإجراءات</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الطالب</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">العمر</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ولي الأمر</th>
@@ -140,26 +148,22 @@
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المدرسة</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">العنوان</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المحفوظات</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ التسجيل</th> {# New Header #}
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ملاحظات</th> {# New Header #}
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="students-table-body">
                     {% for student in students %}
                     <tr class="hover:bg-gray-50 transition-colors duration-200">
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ loop.index }}</td>
-                        {# Moved the actions column here #}
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium">
                             <a href="{{ url_for('modify_student', student_id=student['id']) }}" class="text-indigo-600 hover:text-indigo-900 mx-1">
-                                <i class="fas fa-pen" title="تعديل"></i> {# Pen icon #}
+                                <i class="fas fa-pen" title="تعديل"></i>
                             </a>
                             <a href="#" onclick="confirmDelete({{ student['id'] }}, '{{ student['student_name'] }}')" class="text-red-600 hover:text-red-900 mx-1">
-                                <i class="fas fa-trash-alt" title="حذف"></i> {# Trash can icon #}
+                                <i class="fas fa-trash-alt" title="حذف"></i>
                             </a>
-                            {# A hidden form for deletion, used by JavaScript.
-                                In a real application, consider adding a CSRF token for security. #}
-                            <form id="delete-form-{{ student['id'] }}" action="{{ url_for('delete_student', student_id=student['id']) }}" method="POST" style="display: none;">
-                                {# Example for CSRF token (requires Flask-WTF or similar setup): #}
-                                {# <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"> #}
-                            </form>
+                            <form id="delete-form-{{ student['id'] }}" action="{{ url_for('delete_student', student_id=student['id']) }}" method="POST" style="display: none;"></form>
                         </td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student['student_name'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['age'] }}</td>
@@ -175,10 +179,12 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['school_name'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['address'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['memorizing'] }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['registration_date'] }}</td> {# Display registration_date #}
+                        <td class="px-6 py-4 text-sm text-gray-600 max-w-xs overflow-hidden text-ellipsis">{{ student['notes'] or 'لا يوجد' }}</td> {# Display notes #}
                     </tr>
                     {% else %}
                     <tr id="no-students-row">
-                        <td colspan="10" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td>
+                        <td colspan="12" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td> {# Adjusted colspan #}
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -215,11 +221,11 @@
             }
             allStudentData.push({
                 element: row,
-                student_name: row.children[2] ? row.children[2].textContent : '', // Adjusted index for student_name
-                parent_name: row.children[4] ? row.children[4].textContent : '', // Adjusted index for parent_name
+                student_name: row.children[2] ? row.children[2].textContent : '',
+                parent_name: row.children[4] ? row.children[4].textContent : '',
                 // Store original HTML of potentially highlighted cells to restore them later
-                originalStudentNameHTML: row.children[2] ? row.children[2].innerHTML : '', // Adjusted index
-                originalParentNameHTML: row.children[4] ? row.children[4].innerHTML : '' // Adjusted index
+                originalStudentNameHTML: row.children[2] ? row.children[2].innerHTML : '',
+                originalParentNameHTML: row.children[4] ? row.children[4].innerHTML : ''
             });
         });
 
@@ -266,10 +272,10 @@
                 allStudentData.forEach(data => {
                     data.element.classList.remove('hidden');
                     // Restore original HTML for highlighted cells
-                    if (data.element.children[2]) { // Adjusted index
+                    if (data.element.children[2]) {
                         data.element.children[2].innerHTML = data.originalStudentNameHTML;
                     }
-                    if (data.element.children[4]) { // Adjusted index
+                    if (data.element.children[4]) {
                         data.element.children[4].innerHTML = data.originalParentNameHTML;
                     }
                 });
@@ -294,20 +300,20 @@
                     foundResults++;
 
                     // Apply highlighting to the student name cell
-                    if (data.element.children[2]) { // Adjusted index
+                    if (data.element.children[2]) {
                         data.element.children[2].innerHTML = highlightText(studentName, searchTerm);
                     }
                     // Apply highlighting to the parent name cell
-                    if (data.element.children[4]) { // Adjusted index
+                    if (data.element.children[4]) {
                         data.element.children[4].innerHTML = highlightText(parentName, searchTerm);
                     }
                 } else {
                     data.element.classList.add('hidden'); // Hide the row
                     // Restore original content if the row is hidden
-                    if (data.element.children[2]) { // Adjusted index
+                    if (data.element.children[2]) {
                         data.element.children[2].innerHTML = data.originalStudentNameHTML;
                     }
-                    if (data.element.children[4]) { // Adjusted index
+                    if (data.element.children[4]) {
                         data.element.children[4].innerHTML = data.originalParentNameHTML;
                     }
                 }
