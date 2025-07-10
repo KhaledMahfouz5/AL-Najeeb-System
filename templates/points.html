@@ -24,23 +24,20 @@
         <h2 class="text-2xl font-semibold mb-6 text-gray-800 border-b pb-4">إدارة نقاط الطلاب</h2>
         <form id="points-form" action="{{ url_for('points') }}" method="POST">
             <div class="mb-6">
-                <label class="block text-sm font-medium text-gray-700 mb-2">اختر الطلاب:</label>
-                <div class="flex items-center mb-3">
-                    <input type="checkbox" id="all_students_checkbox" name="all_students" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
-                    <label for="all_students_checkbox" class="ml-2 block text-sm text-gray-900 cursor-pointer">كل الطلاب</label>
-                </div>
+                <label for="search_student_input" class="block text-sm font-medium text-gray-700 mb-1">ابحث عن طالب</label>
+                <input type="text" id="search_student_input" placeholder="اكتب اسم الطالب للبحث..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" dir="rtl">
 
-                <div id="individual_student_selection">
-                    <label for="search_student_input" class="block text-sm font-medium text-gray-700 mb-1">ابحث عن طالب</label>
-                    <input type="text" id="search_student_input" placeholder="اكتب اسم الطالب للبحث..."
-                           class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" dir="rtl">
-                    <select name="student_id" id="student_id" required size="5"
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 mt-2">
-                        <option value="">اختر طالباً...</option>
-                        {% for student in students %}
-                            <option value="{{ student.id }}" data-student-name="{{ student.student_name }}">{{ student.student_name }} (النقاط الحالية: {{ student.points }})</option>
-                        {% endfor %}
-                    </select>
+                {# Replaced <select> with a div for dynamically generated checkboxes #}
+                <div id="student_checkbox_list" class="mt-2 border border-gray-300 rounded-lg p-3 max-h-60 overflow-y-auto bg-gray-50">
+                    {# Checkboxes will be inserted here by JavaScript #}
+                </div>
+                {# Hidden input to mark that at least one student must be selected (will be managed by JS) #}
+                <input type="hidden" name="dummy_student_selector" id="dummy_student_selector" value="" required>
+
+                <div class="mt-3 flex items-center">
+                    <input type="checkbox" id="select_all_students_checkbox" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500">
+                    <label for="select_all_students_checkbox" class="ml-2 block text-sm text-gray-900 cursor-pointer">تحديد/إلغاء تحديد الكل</label>
                 </div>
             </div>
 
@@ -111,14 +108,23 @@
         const quickAddButtons = document.querySelectorAll('.quick-add-btn');
 
         const searchStudentInput = document.getElementById('search_student_input');
-        const studentSelect = document.getElementById('student_id');
-        const studentOptions = Array.from(studentSelect.options);
+        const studentCheckboxList = document.getElementById('student_checkbox_list');
+        const dummyStudentSelector = document.getElementById('dummy_student_selector'); // Hidden input to manage 'required' state
 
-        // New elements
-        const allStudentsCheckbox = document.getElementById('all_students_checkbox');
-        const individualStudentSelectionDiv = document.getElementById('individual_student_selection');
+        const selectAllStudentsCheckbox = document.getElementById('select_all_students_checkbox');
 
-        // Function to perform a fuzzy match (same as before)
+        // Store all student data to generate checkboxes dynamically
+        // This array will hold objects like { id: 1, name: "Student A", points: 10 }
+        const allStudentData = [
+            {% for student in students %}
+            { id: {{ student.id }}, name: "{{ student.student_name }}", points: {{ student.points }} },
+            {% endfor %}
+        ];
+
+        // Store the state of checkboxes across filters
+        const selectedStudentIds = new Set(); // Use a Set for efficient ID tracking
+
+        // Function to perform a fuzzy match
         function fuzzyMatch(pattern, text) {
             pattern = pattern.toLowerCase();
             text = text.toLowerCase();
@@ -134,78 +140,116 @@
             return patternIdx === pattern.length;
         }
 
-        // Function to filter dropdown options (updated to respect allStudentsCheckbox)
-        function filterStudentDropdown() {
-            if (allStudentsCheckbox.checked) {
-                return; // Do not filter if 'All Students' is checked
-            }
-
+        // Function to render/filter the student checkboxes
+        function renderStudentCheckboxes() {
             const searchTerm = searchStudentInput.value.trim();
-            studentSelect.innerHTML = ''; // Clear current options
+            studentCheckboxList.innerHTML = ''; // Clear current checkboxes
 
-            const defaultOption = document.createElement('option');
-            defaultOption.value = '';
-            defaultOption.textContent = 'اختر طالباً...';
-            studentSelect.appendChild(defaultOption);
+            let studentsFound = 0;
 
-            if (searchTerm === '') {
-                studentOptions.forEach(option => {
-                    if (option.value !== '') { // Re-add only actual student options
-                        studentSelect.appendChild(option.cloneNode(true));
+            allStudentData.forEach(student => {
+                const studentName = student.name;
+                const matchesSearch = searchTerm === '' || fuzzyMatch(searchTerm, studentName);
+
+                if (matchesSearch) {
+                    studentsFound++;
+                    const checkboxId = `student_id_${student.id}`;
+                    const div = document.createElement('div');
+                    div.className = 'flex items-center py-1'; // Add some padding
+
+                    const input = document.createElement('input');
+                    input.type = 'checkbox';
+                    input.name = 'student_id'; // Important: all checkboxes have the same name
+                    input.value = student.id;
+                    input.id = checkboxId;
+                    input.className = 'h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 cursor-pointer';
+
+                    const label = document.createElement('label');
+                    label.htmlFor = checkboxId;
+                    label.className = 'ml-2 block text-sm text-gray-900 cursor-pointer flex-1';
+                    label.textContent = `${student.name} (النقاط الحالية: ${student.points})`;
+
+                    // Restore selection state
+                    if (selectedStudentIds.has(student.id)) {
+                        input.checked = true;
                     }
-                });
-            } else {
-                studentOptions.forEach(option => {
-                    const studentName = option.dataset.studentName;
-                    if (option.value !== '' && studentName && fuzzyMatch(searchTerm, studentName)) {
-                        studentSelect.appendChild(option.cloneNode(true));
-                    }
-                });
+
+                    // Add event listener directly to the checkbox
+                    input.addEventListener('change', (event) => {
+                        if (event.target.checked) {
+                            selectedStudentIds.add(student.id);
+                        } else {
+                            selectedStudentIds.delete(student.id);
+                        }
+                        // Update select all checkbox status
+                        updateSelectAllCheckboxState();
+                        updateSubmitButtonState();
+                    });
+
+                    div.appendChild(input);
+                    div.appendChild(label);
+                    studentCheckboxList.appendChild(div);
+                }
+            });
+
+            if (studentsFound === 0 && searchTerm !== '') {
+                studentCheckboxList.innerHTML = '<p class="text-gray-500 text-sm p-2">لا توجد نتائج بحث مطابقة.</p>';
             }
-            // Ensure the selected value remains valid or reset if hidden
-            if (studentSelect.value !== '' && studentSelect.selectedOptions[0].parentElement !== studentSelect) {
-                studentSelect.value = ''; // Deselect if the current choice is now hidden
-            }
-            updateSubmitButtonState();
+
+            updateSelectAllCheckboxState(); // Update select all checkbox based on current filtered view
+            updateSubmitButtonState(); // Update submit button state
         }
 
-        // Function to update the submit button state (modified for all_students_checkbox)
+        // Function to update the "Select All" checkbox state
+        function updateSelectAllCheckboxState() {
+            const visibleCheckboxes = Array.from(studentCheckboxList.querySelectorAll('input[type="checkbox"]'));
+            if (visibleCheckboxes.length === 0) {
+                selectAllStudentsCheckbox.checked = false;
+                selectAllStudentsCheckbox.disabled = true;
+            } else {
+                selectAllStudentsCheckbox.disabled = false;
+                const allVisibleChecked = visibleCheckboxes.every(cb => cb.checked);
+                selectAllStudentsCheckbox.checked = allVisibleChecked;
+            }
+        }
+
+        // Function to update the submit button state
         function updateSubmitButtonState() {
-            const studentSelected = studentSelect.value !== '';
-            const allStudentsChecked = allStudentsCheckbox.checked;
+            // Now, we just check if any checkbox is selected (using our Set)
+            const studentsSelected = selectedStudentIds.size > 0;
             const amountEntered = pointAmountInput.value.trim() !== '' && parseInt(pointAmountInput.value) > 0;
             const operationSelected = operationInput.value !== '';
 
-            // The button is enabled if:
-            // (a specific student is selected OR all students checkbox is checked)
-            // AND a valid amount is entered
-            // AND an operation (add/remove) is selected
-            if ((studentSelected || allStudentsChecked) && amountEntered && operationSelected) {
+            if (studentsSelected && amountEntered && operationSelected) {
                 submitPointsBtn.disabled = false;
                 submitPointsBtn.classList.remove('bg-gray-400', 'hover:bg-gray-500');
                 submitPointsBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+                dummyStudentSelector.removeAttribute('required'); // Allow submission
             } else {
                 submitPointsBtn.disabled = true;
                 submitPointsBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
                 submitPointsBtn.classList.add('bg-gray-400', 'hover:bg-gray-500');
+                dummyStudentSelector.setAttribute('required', 'required'); // Prevent submission
             }
         }
 
-        // Event listener for All Students checkbox
-        allStudentsCheckbox.addEventListener('change', () => {
-            if (allStudentsCheckbox.checked) {
-                individualStudentSelectionDiv.classList.add('hidden'); // Hide individual selection
-                studentSelect.removeAttribute('required'); // No longer required if all students
-                studentSelect.value = ''; // Clear selection
-                searchStudentInput.value = ''; // Clear search input
-                filterStudentDropdown(); // Reset dropdown visually
-            } else {
-                individualStudentSelectionDiv.classList.remove('hidden'); // Show individual selection
-                studentSelect.setAttribute('required', 'required'); // Make dropdown required again
-            }
+        // Event listener for "Select All" checkbox
+        selectAllStudentsCheckbox.addEventListener('change', () => {
+            const isChecked = selectAllStudentsCheckbox.checked;
+            studentCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+                checkbox.checked = isChecked;
+                // Manually update the selectedStudentIds set
+                if (isChecked) {
+                    selectedStudentIds.add(parseInt(checkbox.value));
+                } else {
+                    selectedStudentIds.delete(parseInt(checkbox.value));
+                }
+            });
             updateSubmitButtonState();
         });
 
+
+        // Event listeners for Add/Remove buttons
         addPointsBtn.addEventListener('click', () => {
             operationInput.value = 'add';
             addPointsBtn.classList.add('bg-green-700');
@@ -220,6 +264,7 @@
             updateSubmitButtonState();
         });
 
+        // Event listener for quick add buttons
         quickAddButtons.forEach(button => {
             button.addEventListener('click', () => {
                 pointAmountInput.value = button.dataset.points;
@@ -227,15 +272,17 @@
             });
         });
 
+        // Event listener for manual input change
         pointAmountInput.addEventListener('input', updateSubmitButtonState);
-        studentSelect.addEventListener('change', updateSubmitButtonState);
-        searchStudentInput.addEventListener('input', filterStudentDropdown);
 
-        // Initial state check when the page loads
-        // Trigger checkbox change listener on load to set initial state
-        allStudentsCheckbox.dispatchEvent(new Event('change'));
-        updateSubmitButtonState();
+        // Event listener for search input
+        searchStudentInput.addEventListener('input', renderStudentCheckboxes);
 
+        // Initial setup on page load
+        renderStudentCheckboxes(); // Render initial list of all students
+        updateSubmitButtonState(); // Set initial button state
+
+        // Prevent double submission
         const pointsForm = document.getElementById('points-form');
         if (pointsForm) {
             pointsForm.addEventListener('submit', () => {

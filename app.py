@@ -2,7 +2,7 @@ import sqlite3
 import csv
 import io
 import re
-import os # Import the os module
+import os
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 import datetime
 
@@ -12,20 +12,17 @@ app.secret_key = 'your_super_secret_key_12345'
 app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$') # Syrian phone format
 
 # Define the path to the database folder
-# This creates a path like 'your_project/databases/students.db'
-DATABASE_FOLDER = os.path.join(app.root_path, 'databases') # Use app.root_path for reliable directory
+DATABASE_FOLDER = os.path.join(app.root_path, 'databases')
 DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'students.db')
 
 # --- Database Functions ---
 def get_db_connection():
-    # Ensure the database folder exists before connecting
     os.makedirs(DATABASE_FOLDER, exist_ok=True)
-    conn = sqlite3.connect(DATABASE_FILE) # Connect to the specified path
+    conn = sqlite3.connect(DATABASE_FILE)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    # Ensure the database folder exists before creating the DB file
     os.makedirs(DATABASE_FOLDER, exist_ok=True)
     with get_db_connection() as conn:
         conn.execute('DROP TABLE IF EXISTS students')
@@ -47,7 +44,6 @@ def init_db():
                 points INTEGER DEFAULT 0 NOT NULL
             )
         ''')
-        # Add indexes for faster search
         conn.execute('CREATE INDEX idx_student_name ON students(student_name)')
         conn.execute('CREATE INDEX idx_parent_name ON students(parent_name)')
     print("Database initialized with schema constraints and indexes")
@@ -352,7 +348,7 @@ def import_csv():
             flash('لم يتم استيراد أي سجلات', 'warning')
 
     except csv.Error as e:
-        flash(f'خطأ في معالجة CSV: {str(e)}', 'danger')
+        flash(f'خطأ في معالشة CSV: {str(e)}', 'danger')
     except Exception as e:
         flash(f'خطأ غير متوقع: {str(e)}', 'danger')
 
@@ -369,75 +365,68 @@ def record():
 @app.route('/points', methods=['GET', 'POST'])
 def points():
     if request.method == 'POST':
-        # Check for 'all_students' checkbox first
-        apply_to_all_students = 'all_students' in request.form
-        student_id = request.form.get('student_id') # This will be empty if 'all_students' is checked
+        # Now student_id will be a list of selected IDs from the checkboxes
+        selected_student_ids = request.form.getlist('student_id')
         point_amount_str = request.form.get('point_amount')
-        operation = request.form.get('operation') # 'add' or 'remove'
+        operation = request.form.get('operation')
 
-        if (not apply_to_all_students and not student_id) or not point_amount_str or not operation:
-            flash('الرجاء اختيار طالب واحد على الأقل (أو كل الطلاب) وتعبئة جميع الحقول المطلوبة.', 'danger')
+        if not selected_student_ids or not point_amount_str or not operation:
+            flash('الرجاء اختيار طالب واحد على الأقل وتعبئة جميع الحقول المطلوبة.', 'danger')
             return redirect(url_for('points'))
 
         try:
             point_amount = int(point_amount_str)
 
-            if point_amount <= 0: # Changed from < 0 to <= 0
+            if point_amount <= 0:
                 flash('الرجاء إدخال قيمة نقاط أكبر من صفر.', 'danger')
                 return redirect(url_for('points'))
 
             with get_db_connection() as conn:
-                students_to_update = []
-                if apply_to_all_students:
-                    students_to_update = conn.execute('SELECT id, student_name, points FROM students').fetchall()
-                else:
-                    # Fetch single student if not applying to all
-                    student = conn.execute('SELECT id, student_name, points FROM students WHERE id = ?', (student_id,)).fetchone()
-                    if student:
-                        students_to_update.append(student)
-                    else:
-                        flash('الطالب المحدد غير موجود.', 'danger')
-                        return redirect(url_for('points'))
-
-                if not students_to_update:
-                    flash('لا يوجد طلاب لتحديث نقاطهم.', 'warning')
+                # Ensure IDs are integers and unique
+                int_selected_ids = sorted(list(set([int(sid) for sid in selected_student_ids if sid.isdigit()])))
+                if not int_selected_ids:
+                    flash('لم يتم تحديد أي طالب صالح.', 'danger')
                     return redirect(url_for('points'))
 
-                updated_count = 0
+                placeholders = ','.join(['?'] * len(int_selected_ids))
+                query = f"SELECT id, student_name, points FROM students WHERE id IN ({placeholders})"
+                students_to_update = conn.execute(query, int_selected_ids).fetchall()
+
+                if not students_to_update:
+                    flash('لم يتم العثور على أي طلاب مطابقين للاختيار.', 'danger')
+                    return redirect(url_for('points'))
+
+                updated_details = []
                 for student in students_to_update:
                     current_points = student['points']
                     student_name = student['student_name']
                     new_points = current_points
-                    applied_amount = point_amount # Amount actually applied for logging/messages
 
                     if operation == 'add':
                         new_points += point_amount
-                        flash_message_prefix = f'تمت إضافة {point_amount} نقطة لـ {student_name}.'
                     elif operation == 'remove':
                         if current_points < point_amount:
-                            applied_amount = current_points # Only remove what's available
                             new_points = 0 # Cap at zero
-                            flash_message_prefix = (f'لا يمكن خصم {point_amount} نقطة من {student_name} حيث يمتلك {current_points} نقطة فقط. '
-                                                    f'تم خصم {applied_amount} نقطة وتعيين النقاط إلى 0.')
                         else:
                             new_points -= point_amount
-                            flash_message_prefix = f'تم خصم {point_amount} نقطة من {student_name}.'
                     else:
                         flash('عملية غير صالحة.', 'danger')
                         return redirect(url_for('points'))
 
                     conn.execute('UPDATE students SET points = ? WHERE id = ?', (new_points, student['id']))
-                    updated_count += 1
-                    # Flash message per student if not all, or accumulate for all
-                    if not apply_to_all_students:
-                        flash(f'{flash_message_prefix} النقاط الجديدة لـ {student_name}: {new_points}', 'success' if new_points >=0 else 'warning') # category based on points
+                    updated_details.append(f"{student_name} (أصبح {new_points})")
+
                 conn.commit()
 
-                if apply_to_all_students:
-                    total_students = len(students_to_update)
-                    flash_op_text = "إضافة" if operation == "add" else "خصم"
-                    flash(f'تم {flash_op_text} {point_amount} نقطة لـ {updated_count} طالب بنجاح.', 'success')
-
+                flash_op_text = "إضافة" if operation == "add" else "خصم"
+                if len(updated_details) == 1:
+                    flash(f'تمت عملية {flash_op_text} النقاط للطالب {updated_details[0].replace(" (أصبح", " والنقاط الجديدة")}.', 'success')
+                else:
+                    flash_message_head = f'تمت عملية {flash_op_text} النقاط لـ {len(updated_details)} طلاب.'
+                    flash_message_body = 'التفاصيل: ' + ', '.join(updated_details[:5])
+                    if len(updated_details) > 5:
+                        flash_message_body += f'... والمزيد.'
+                    flash(f'{flash_message_head} {flash_message_body}', 'success')
 
         except ValueError:
             flash('النقاط يجب أن تكون أرقاماً صحيحة.', 'danger')
