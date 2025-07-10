@@ -1,3 +1,4 @@
+{# templates/modify_info.html #}
 {% extends 'template.html' %}
 
 {% block title %}تعديل معلومات الطالب{% endblock %}
@@ -6,7 +7,6 @@
     <header class="text-center">
         <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">تعديل معلومات الطالب</h1>
 
-        {# Navigation Bar #}
         <nav class="mb-8">
             <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex">
                 <li>
@@ -87,14 +87,13 @@
     </div>
 
     <script>
-        // Prevent double submission for the modify form
         const modifyStudentForm = document.getElementById('modify-student-form');
         const submitModifyButton = document.getElementById('submit-modify-button');
 
         if (modifyStudentForm && submitModifyButton) {
             modifyStudentForm.addEventListener('submit', () => {
                 submitModifyButton.disabled = true;
-                submitModifyButton.textContent = 'جاري الحفظ...'; // "Saving..."
+                submitModifyButton.textContent = 'جاري الحفظ...';
             });
         }
     </script>

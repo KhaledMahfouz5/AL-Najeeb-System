@@ -3,7 +3,7 @@ import csv
 import io
 import re
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
-import datetime # Import datetime for current date
+import datetime
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -32,8 +32,9 @@ def init_db():
                 school_name TEXT NOT NULL,
                 address TEXT NOT NULL,
                 memorizing TEXT NOT NULL,
-                notes TEXT, -- New: Optional notes field
-                registration_date TEXT NOT NULL -- New: Registration date
+                notes TEXT,
+                registration_date TEXT NOT NULL,
+                points INTEGER DEFAULT 0 NOT NULL -- New: Points field, defaults to 0
             )
         ''')
         # Add indexes for faster search
@@ -50,6 +51,7 @@ def init_db_command():
 def validate_phone(phone):
     return bool(app.config['PHONE_REGEX'].match(phone)) if phone else True
 
+# MODIFIED: Removed 'points' from validation
 def validate_student_data(form_data, is_csv=False):
     errors = []
     required_fields = ['student_name', 'age', 'parent_name',
@@ -84,7 +86,6 @@ def validate_student_data(form_data, is_csv=False):
     reg_date_str = form_data.get('registration_date')
     if reg_date_str:
         try:
-            # Attempt to parse the date. Format 'YYYY-MM-DD' is common for HTML date input
             datetime.datetime.strptime(reg_date_str, '%Y-%m-%d')
         except ValueError:
             errors.append("تاريخ التسجيل غير صالح. يجب أن يكون بالصيغة YYYY-MM-DD")
@@ -96,8 +97,12 @@ def validate_student_data(form_data, is_csv=False):
 def index():
     try:
         with get_db_connection() as conn:
+            # MODIFIED: Added points to the SELECT statement
             students = conn.execute('''
-                SELECT * FROM students
+                SELECT id, student_name, age, parent_name, parent_phone_1, parent_phone_2,
+                       student_phone, grade, school_name, address, memorizing, notes,
+                       registration_date, points
+                FROM students
                 ORDER BY student_name ASC
             ''').fetchall()
         return render_template('index.html', students=students)
@@ -115,10 +120,9 @@ def add_student():
             flash(error, 'danger')
         return redirect(url_for('index'))
 
-    # Get current date if registration_date is not provided
     registration_date = form_data.get('registration_date')
     if not registration_date:
-        registration_date = datetime.date.today().isoformat() # YYYY-MM-DD format
+        registration_date = datetime.date.today().isoformat()
 
     try:
         student_data = (
@@ -132,11 +136,15 @@ def add_student():
             form_data['school_name'],
             form_data['address'],
             form_data['memorizing'],
-            form_data.get('notes') or None, # New: notes
-            registration_date # New: registration_date
+            form_data.get('notes') or None,
+            registration_date,
+            # MODIFIED: No points input from form, it will use the DEFAULT 0 from schema
+            # You don't need to explicitly pass 0 here, as the database will handle it.
+            # If you did pass it, it would be `0` here.
         )
 
         with get_db_connection() as conn:
+            # MODIFIED: Removed 'points' from INSERT statement
             conn.execute('''
                 INSERT INTO students (
                     student_name, age, parent_name,
@@ -160,10 +168,14 @@ def add_student():
 @app.route('/modify_student/<int:student_id>', methods=['GET', 'POST'])
 def modify_student(student_id):
     if request.method == 'GET':
-        # Display the modification form
         try:
             with get_db_connection() as conn:
-                student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+                # MODIFIED: Added points to the SELECT statement
+                student = conn.execute('''
+                    SELECT id, student_name, age, parent_name, parent_phone_1, parent_phone_2,
+                           student_phone, grade, school_name, address, memorizing, notes,
+                           registration_date, points
+                    FROM students WHERE id = ?''', (student_id,)).fetchone()
 
             if student is None:
                 flash('الطالب غير موجود.', 'danger')
@@ -175,27 +187,39 @@ def modify_student(student_id):
             return redirect(url_for('index'))
 
     elif request.method == 'POST':
-        # Process the modification form submission
         form_data = request.form
         validation_errors = validate_student_data(form_data)
 
         if validation_errors:
             for error in validation_errors:
                 flash(error, 'danger')
-            # Fetch student again to re-render form with current data and errors
             try:
                 with get_db_connection() as conn:
-                    student = conn.execute('SELECT * FROM students WHERE id = ?', (student_id,)).fetchone()
+                    # MODIFIED: Added points to the SELECT statement
+                    student = conn.execute('''
+                        SELECT id, student_name, age, parent_name, parent_phone_1, parent_phone_2,
+                               student_phone, grade, school_name, address, memorizing, notes,
+                               registration_date, points
+                        FROM students WHERE id = ?''', (student_id,)).fetchone()
                 return render_template('modify_info.html', student=student)
             except sqlite3.Error as e:
                 flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
                 return redirect(url_for('index'))
 
-        # Get current date if registration_date is not provided during modification
         registration_date = form_data.get('registration_date')
         if not registration_date:
-            registration_date = datetime.date.today().isoformat() # YYYY-MM-DD format
-
+            # MODIFIED: Preserve original registration_date if not provided on update
+            # Fetch original date from DB if not provided in form.
+            # This requires fetching the student first if registration_date isn't present in form_data
+            try:
+                with get_db_connection() as conn:
+                    original_student = conn.execute('SELECT registration_date FROM students WHERE id = ?', (student_id,)).fetchone()
+                    if original_student:
+                        registration_date = original_student['registration_date']
+                    else:
+                        registration_date = datetime.date.today().isoformat() # Fallback
+            except sqlite3.Error:
+                registration_date = datetime.date.today().isoformat() # Fallback on DB error
 
         try:
             student_data = (
@@ -209,12 +233,15 @@ def modify_student(student_id):
                 form_data['school_name'],
                 form_data['address'],
                 form_data['memorizing'],
-                form_data.get('notes') or None, # New: notes
-                registration_date, # New: registration_date
-                student_id # The ID is the last parameter for the WHERE clause
+                form_data.get('notes') or None,
+                registration_date,
+                # MODIFIED: No points input from form, ensure points are *not* updated here
+                student_id
             )
 
             with get_db_connection() as conn:
+                # MODIFIED: Removed 'points' from UPDATE statement in modify_student
+                # The points should only be modifiable via the points page.
                 conn.execute('''
                     UPDATE students SET
                         student_name = ?,
@@ -227,8 +254,8 @@ def modify_student(student_id):
                         school_name = ?,
                         address = ?,
                         memorizing = ?,
-                        notes = ?,          -- New
-                        registration_date = ? -- New
+                        notes = ?,
+                        registration_date = ?
                     WHERE id = ?
                 ''', student_data)
                 conn.commit()
@@ -265,7 +292,7 @@ def import_csv():
         valid_rows = []
         row_errors = []
 
-        # Assuming CSV now has 12 columns: existing 10 + notes + registration_date
+        # MODIFIED: CSV now has 12 columns: existing 10 + notes + registration_date (points are DEFAULT)
         expected_columns = 12
 
         for i, row in enumerate(csv_reader, 1):
@@ -285,8 +312,9 @@ def import_csv():
                 'school_name': row[7].strip(),
                 'address': row[8].strip(),
                 'memorizing': row[9].strip(),
-                'notes': row[10].strip(),             # New: notes
-                'registration_date': row[11].strip()  # New: registration_date
+                'notes': row[10].strip(),
+                'registration_date': row[11].strip()
+                # MODIFIED: No 'points' expected from CSV input, it will default to 0
             }
 
             # If registration_date is empty in CSV, set to current date
@@ -299,7 +327,7 @@ def import_csv():
                 row_errors.append(f'السطر {i}: {"; ".join(errors)}')
                 continue
 
-            # Prepare for insertion
+            # Prepare for insertion (points will default to 0)
             valid_rows.append((
                 student_data['student_name'],
                 int(student_data['age']),
@@ -311,20 +339,21 @@ def import_csv():
                 student_data['school_name'],
                 student_data['address'],
                 student_data['memorizing'],
-                student_data['notes'] or None,             # New: notes
-                student_data['registration_date']          # New: registration_date
+                student_data['notes'] or None,
+                student_data['registration_date']
+                # No points value here, it relies on DEFAULT 0
             ))
 
-        # Process validation results
         if row_errors:
             flash(f'تم العثور على أخطاء في {len(row_errors)} سطراً', 'warning')
-            for error in row_errors[:5]: # Show first 5 errors
+            for error in row_errors[:5]:
                 flash(error, 'danger')
             if len(row_errors) > 5:
                 flash(f'...و {len(row_errors)-5} أخطاء إضافية', 'danger')
 
         if valid_rows:
             with get_db_connection() as conn:
+                # MODIFIED: Removed 'points' from INSERT statement for CSV import
                 conn.executemany('''
                     INSERT INTO students (
                         student_name, age, parent_name,
@@ -349,7 +378,6 @@ def import_csv():
 @app.route('/download_csv_template')
 def download_csv_template():
     # The directory where the template.csv is located (your templates folder)
-    # The second argument is the filename to be sent
     return send_from_directory(app.template_folder, 'template.csv', as_attachment=True)
 
 # Route for the "تسجيل حضور أو حفظ" page
@@ -357,16 +385,86 @@ def download_csv_template():
 def record():
     return render_template('record.html')
 
-# Route for the "النقاط" page
-@app.route('/points')
+# MODIFIED: Points route is already updated from previous turn, just ensure the logic
+# prevents negative points (which it already does).
+@app.route('/points', methods=['GET', 'POST'])
 def points():
-    return render_template('points.html')
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        point_amount_str = request.form.get('point_amount')
+        operation = request.form.get('operation') # 'add' or 'remove'
+
+        if not student_id or not point_amount_str or not operation:
+            flash('الرجاء تعبئة جميع الحقول المطلوبة.', 'danger')
+            return redirect(url_for('points'))
+
+        try:
+            student_id = int(student_id)
+            point_amount = int(point_amount_str)
+
+            if point_amount < 0:
+                flash('قيمة النقاط لا يمكن أن تكون سالبة.', 'danger')
+                return redirect(url_for('points'))
+            if point_amount == 0:
+                flash('الرجاء إدخال قيمة نقاط أكبر من صفر.', 'warning')
+                return redirect(url_for('points'))
+
+            with get_db_connection() as conn:
+                student = conn.execute('SELECT points, student_name FROM students WHERE id = ?', (student_id,)).fetchone()
+                if student is None:
+                    flash('الطالب غير موجود.', 'danger')
+                    return redirect(url_for('points'))
+
+                current_points = student['points']
+                student_name = student['student_name']
+                new_points = current_points
+
+                if operation == 'add':
+                    new_points += point_amount
+                    flash_message = f'تمت إضافة {point_amount} نقطة للطالب {student_name}.'
+                    flash_category = 'success'
+                elif operation == 'remove':
+                    # Prevent negative points: cap at 0 if removal amount exceeds current points
+                    if current_points < point_amount:
+                        flash_message = (f'لا يمكن خصم {point_amount} نقطة من {student_name} حيث يمتلك {current_points} نقطة فقط. '
+                                         f'تم خصم {current_points} نقطة وتم تعيين النقاط إلى 0.')
+                        new_points = 0 # Ensure it doesn't go below zero
+                        flash_category = 'warning'
+                    else:
+                        new_points -= point_amount
+                        flash_message = f'تم خصم {point_amount} نقطة من الطالب {student_name}.'
+                        flash_category = 'success'
+                else:
+                    flash('عملية غير صالحة.', 'danger')
+                    return redirect(url_for('points'))
+
+                conn.execute('UPDATE students SET points = ? WHERE id = ?', (new_points, student_id))
+                conn.commit()
+                flash(f'{flash_message} النقاط الجديدة لـ {student_name}: {new_points}', flash_category)
+
+        except ValueError:
+            flash('النقاط وقيمة الطالب يجب أن تكون أرقاماً صحيحة.', 'danger')
+        except sqlite3.Error as e:
+            flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+        except Exception as e:
+            flash(f'خطأ غير متوقع: {str(e)}', 'danger')
+
+        return redirect(url_for('points'))
+
+    else: # GET request
+        try:
+            with get_db_connection() as conn:
+                students = conn.execute('SELECT id, student_name, points FROM students ORDER BY student_name ASC').fetchall()
+            return render_template('points.html', students=students)
+        except sqlite3.Error as e:
+            flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+            return render_template('points.html', students=[])
+
 
 @app.route('/delete_student/<int:student_id>', methods=['POST'])
 def delete_student(student_id):
     try:
         with get_db_connection() as conn:
-            # First, check if the student exists
             student = conn.execute('SELECT id FROM students WHERE id = ?', (student_id,)).fetchone()
             if student is None:
                 flash('الطالب غير موجود.', 'danger')

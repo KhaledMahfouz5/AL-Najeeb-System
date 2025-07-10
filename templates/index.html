@@ -1,24 +1,20 @@
+{# templates/index.html #}
 {% extends 'template.html' %}
 
-{% block title %}الصفحة الرئيسية{% endblock %} {# Specific title for this page #}
+{% block title %}الصفحة الرئيسية{% endblock %}
 
 {% block content %}
-    <header class="text-center"> {# Removed mb-8 from header, now handled by h1 and nav #}
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">نظام إدارة الطلاب</h1> {# Added mb-6 for spacing below title #}
-
-        {# Navigation Bar - More Eye-Attractive Styling #}
-        <nav class="mb-8"> {# Kept mb-8 for space below nav #}
-            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex"> {# Added padding, background, rounded corners, shadow, and inline-flex for better alignment #}
+    <header class="text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">نظام إدارة الطلاب</h1>
+        <nav class="mb-8">
+            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex">
                 <li>
-                    {# Active link styling #}
                     <a href="{{ url_for('index') }}" class="text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-3 rounded-full transition-all duration-300 ease-in-out shadow-md">الصفحة الرئيسية</a>
                 </li>
                 <li>
-                    {# Inactive link styling #}
                     <a href="{{ url_for('record') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">تسجيل حضور أو حفظ</a>
                 </li>
                 <li>
-                    {# Inactive link styling #}
                     <a href="{{ url_for('points') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">النقاط</a>
                 </li>
             </ul>
@@ -69,7 +65,7 @@
                     <label for="memorizing" class="block text-sm font-medium text-gray-700 mb-1">المحفوظات</label>
                     <input type="text" name="memorizing" id="memorizing" placeholder="مثال: القرآن، جزء عم" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                 </div>
-                 <div class="md:col-span-2">
+                <div class="md:col-span-2">
                     <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">ملاحظات (اختياري)</label>
                     <textarea name="notes" id="notes" rows="3" placeholder="أضف أي ملاحظات إضافية هنا..." class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                 </div>
@@ -95,8 +91,7 @@
             <p class="mt-2" style="direction: ltr; text-align: right;">
                 <code class="text-xs font-mono">اسم الطالب, العمر, اسم ولي الأمر, هاتف ولي الأمر 1, هاتف ولي الأمر 2, هاتف الطالب, الصف, اسم المدرسة, العنوان, المحفوظات, الملاحظات, تاريخ التسجيل</code>
             </p>
-            <p>إذا كانت الحقول الاختيارية (هاتف ولي الأمر 2، هاتف الطالب، الملاحظات، تاريخ التسجيل) فارغة، اتركها كذلك. تاريخ التسجيل سيُعيّن تلقائياً لليوم الحالي إذا تُرِك فارغاً.</p>
-            {# Added link to download CSV template #}
+            <p>إذا كانت الحقول الاختيارية (هاتف ولي الأمر 2، هاتف الطالب، الملاحظات، تاريخ التسجيل) فارغة، اتركها كذلك. تاريخ التسجيل سيُعيّن تلقائياً لليوم الحالي إذا تُرِك فارغاً. **النقاط تبدأ من صفر ولا تُدرج في الملف CSV.**</p>
             <p class="mt-3">
                 <a href="{{ url_for('download_csv_template') }}" class="text-blue-600 hover:underline font-semibold" download>
                     تنزيل قالب CSV
@@ -128,7 +123,6 @@
             </button>
         </div>
 
-        {# Search input box for fuzzy finding #}
         <div class="mb-6">
             <label for="search-input" class="sr-only">البحث عن طالب</label>
             <input type="text" id="search-input" placeholder="ابحث عن طالب بالاسم أو ولي الأمر..." class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" dir="rtl">
@@ -148,8 +142,9 @@
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المدرسة</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">العنوان</th>
                         <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">المحفوظات</th>
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ التسجيل</th> {# New Header #}
-                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ملاحظات</th> {# New Header #}
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">تاريخ التسجيل</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">ملاحظات</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">النقاط</th> {# ADDED: Points header for table #}
                     </tr>
                 </thead>
                 <tbody class="bg-white divide-y divide-gray-200" id="students-table-body">
@@ -179,17 +174,17 @@
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['school_name'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['address'] }}</td>
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['memorizing'] }}</td>
-                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['registration_date'] }}</td> {# Display registration_date #}
-                        <td class="px-6 py-4 text-sm text-gray-600 max-w-xs overflow-hidden text-ellipsis">{{ student['notes'] or 'لا يوجد' }}</td> {# Display notes #}
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{{ student['registration_date'] }}</td>
+                        <td class="px-6 py-4 text-sm text-gray-600 max-w-xs overflow-hidden text-ellipsis">{{ student['notes'] or 'لا يوجد' }}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-blue-700 font-semibold">{{ student['points'] }}</td> {# ADDED: Display points #}
                     </tr>
                     {% else %}
                     <tr id="no-students-row">
-                        <td colspan="12" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td> {# Adjusted colspan #}
+                        <td colspan="13" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td> {# Adjusted colspan #}
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
-            {# Message to display when no search results are found #}
             <div id="no-search-results" class="text-center py-6 text-gray-500 hidden">
                 لا توجد نتائج بحث مطابقة.
             </div>
@@ -197,7 +192,6 @@
     </div>
 
     <script>
-        // Get references to all necessary elements
         const csvFileInput = document.getElementById('csv-file-input');
         const chooseFileButton = document.getElementById('choose-file-button');
         const fileNameDisplay = document.getElementById('file-name-display');
@@ -207,7 +201,6 @@
         const addStudentForm = document.getElementById('add-student-form');
         const submitAddButton = document.getElementById('submit-add-button');
 
-        // New elements for search functionality
         const searchInput = document.getElementById('search-input');
         const studentsTableBody = document.getElementById('students-table-body');
         const noStudentsRow = document.getElementById('no-students-row');
@@ -229,8 +222,6 @@
             });
         });
 
-        // Function to perform a fuzzy match
-        // Checks if all characters of the pattern exist sequentially in the text, allowing for other characters in between.
         function fuzzyMatch(pattern, text) {
             pattern = pattern.toLowerCase();
             text = text.toLowerCase();
@@ -246,32 +237,24 @@
             return patternIdx === pattern.length;
         }
 
-        // Function to highlight occurrences of a term within text
         function highlightText(text, term) {
             if (!term) return text;
-            // Escape special characters in the term to be used in regex
             const escapedTerm = term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            // Use a regular expression with 'gi' for global and case-insensitive matching
             const regex = new RegExp(escapedTerm, 'gi');
-            // Replace all occurrences of the term with the highlighted version
             return text.replace(regex, match => `<span class="highlight">${match}</span>`);
         }
 
-        // Function to filter students based on search input
         function filterStudents() {
             const searchTerm = searchInput.value.trim();
             let foundResults = 0;
 
-            // Hide the "no students" row if it exists
             if (noStudentsRow) {
                 noStudentsRow.classList.add('hidden');
             }
 
             if (searchTerm === '') {
-                // If search term is empty, show all rows and restore their original content
                 allStudentData.forEach(data => {
                     data.element.classList.remove('hidden');
-                    // Restore original HTML for highlighted cells
                     if (data.element.children[2]) {
                         data.element.children[2].innerHTML = data.originalStudentNameHTML;
                     }
@@ -279,37 +262,31 @@
                         data.element.children[4].innerHTML = data.originalParentNameHTML;
                     }
                 });
-                noSearchResultsDiv.classList.add('hidden'); // Hide no results message
-                // If there were no students initially (allStudentData is empty), show the "no students" row again
+                noSearchResultsDiv.classList.add('hidden');
                 if (noStudentsRow && allStudentData.length === 0) {
                     noStudentsRow.classList.remove('hidden');
                 }
                 return;
             }
 
-            // Iterate through the stored student data
             allStudentData.forEach(data => {
                 const studentName = data.student_name;
                 const parentName = data.parent_name;
 
-                // Perform fuzzy search ONLY on student name or parent name
                 const isMatch = fuzzyMatch(searchTerm, studentName) || fuzzyMatch(searchTerm, parentName);
 
                 if (isMatch) {
-                    data.element.classList.remove('hidden'); // Show the row
+                    data.element.classList.remove('hidden');
                     foundResults++;
 
-                    // Apply highlighting to the student name cell
                     if (data.element.children[2]) {
                         data.element.children[2].innerHTML = highlightText(studentName, searchTerm);
                     }
-                    // Apply highlighting to the parent name cell
                     if (data.element.children[4]) {
                         data.element.children[4].innerHTML = highlightText(parentName, searchTerm);
                     }
                 } else {
-                    data.element.classList.add('hidden'); // Hide the row
-                    // Restore original content if the row is hidden
+                    data.element.classList.add('hidden');
                     if (data.element.children[2]) {
                         data.element.children[2].innerHTML = data.originalStudentNameHTML;
                     }
@@ -319,7 +296,6 @@
                 }
             });
 
-            // Show/hide the "no search results" message based on found results
             if (foundResults > 0) {
                 noSearchResultsDiv.classList.add('hidden');
             } else {
@@ -327,57 +303,42 @@
             }
         }
 
-        // Event listener for the search input
         searchInput.addEventListener('input', filterStudents);
 
-        // When the "Choose File" button is clicked, it programmatically clicks the hidden file input.
         chooseFileButton.addEventListener('click', () => {
             csvFileInput.click();
         });
 
-        // When a file is selected using the file input...
         csvFileInput.addEventListener('change', () => {
             if (csvFileInput.files.length > 0) {
                 const fileName = csvFileInput.files[0].name;
                 fileNameDisplay.textContent = `الملف المختار: ${fileName}`;
-
-                // Show the file name display and the submit button
                 fileNameDisplay.classList.remove('hidden');
                 submitImportButton.classList.remove('hidden');
-
-                // Hide the original "Choose File" button to avoid confusion
                 chooseFileButton.classList.add('hidden');
             } else {
-                // If no file is selected (e.g., user cancels file dialog)
                 fileNameDisplay.classList.add('hidden');
                 submitImportButton.classList.add('hidden');
                 chooseFileButton.classList.remove('hidden');
             }
         });
 
-        // Toggle the visibility of the "Add New Student" form
         addManuallyButton.addEventListener('click', () => {
             addStudentSection.classList.toggle('hidden');
         });
 
-        // --- Prevent Double Submissions ---
-
-        // For the CSV Import Form
         importForm.addEventListener('submit', () => {
             submitImportButton.disabled = true;
-            submitImportButton.textContent = 'جاري الرفع...'; // "Uploading..."
+            submitImportButton.textContent = 'جاري الرفع...';
         });
 
-        // For the Manual Add Student Form
         addStudentForm.addEventListener('submit', () => {
             submitAddButton.disabled = true;
-            submitAddButton.textContent = 'جاري الحفظ...'; // "Saving..."
+            submitAddButton.textContent = 'جاري الحفظ...';
         });
 
-        // --- New JavaScript for Delete Confirmation ---
         function confirmDelete(studentId, studentName) {
             if (confirm(`هل أنت متأكد أنك تريد حذف الطالب "${studentName}"؟ هذا الإجراء لا يمكن التراجع عنه.`)) {
-                // If confirmed, submit the hidden form for deletion
                 document.getElementById(`delete-form-${studentId}`).submit();
             }
         }

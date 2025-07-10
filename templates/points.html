@@ -3,21 +3,17 @@
 {% block title %}النقاط{% endblock %}
 
 {% block content %}
-    <header class="text-center"> {# Removed mb-8 from header, now handled by h1 and nav #}
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">نظام نقاط الطلاب</h1> {# Added mb-6 for spacing below title #}
-        {# Navigation Bar - More Eye-Attractive Styling #}
-        <nav class="mb-8"> {# Kept mb-8 for space below nav #}
-            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex"> {# Added padding, background, rounded corners, shadow, and inline-flex for better alignment #}
+    <header class="text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">نظام نقاط الطلاب</h1>
+        <nav class="mb-8">
+            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex">
                 <li>
-                    {# Inactive link styling #}
                     <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">الصفحة الرئيسية</a>
                 </li>
                 <li>
-                    {# Inactive link styling #}
                     <a href="{{ url_for('record') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">تسجيل حضور أو حفظ</a>
                 </li>
                 <li>
-                    {# Active link styling #}
                     <a href="{{ url_for('points') }}" class="text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-3 rounded-full transition-all duration-300 ease-in-out shadow-md">النقاط</a>
                 </li>
             </ul>
@@ -25,7 +21,141 @@
     </header>
 
     <div class="bg-white p-8 rounded-xl shadow-lg mb-8">
-        <p class="text-gray-600 text-center">هذه صفحة لعرض وإدارة نقاط الطلاب.</p>
-        {# Content for student points/rewards will go here #}
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800 border-b pb-4">إدارة نقاط الطلاب</h2>
+        <form id="points-form" action="{{ url_for('points') }}" method="POST">
+            <div class="mb-6">
+                <label for="student_id" class="block text-sm font-medium text-gray-700 mb-1">اسم الطالب</label>
+                <select name="student_id" id="student_id" required class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <option value="">اختر طالباً...</option>
+                    {% for student in students %}
+                        <option value="{{ student.id }}">{{ student.student_name }} (النقاط الحالية: {{ student.points }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="mb-6 flex space-x-4 space-x-reverse">
+                <button type="button" id="add-points-btn" data-operation="add" class="flex-1 px-6 py-3 bg-green-600 text-white font-semibold rounded-lg shadow-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-all">
+                    إضافة نقاط
+                </button>
+                <button type="button" id="remove-points-btn" data-operation="remove" class="flex-1 px-6 py-3 bg-red-600 text-white font-semibold rounded-lg shadow-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500 transition-all">
+                    خصم نقاط
+                </button>
+            </div>
+
+            <div class="mb-6">
+                <label for="point_amount" class="block text-sm font-medium text-gray-700 mb-1">المبلغ</label>
+                <div class="flex space-x-2 space-x-reverse">
+                    <button type="button" class="quick-add-btn px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400" data-points="5">5 نقاط</button>
+                    <button type="button" class="quick-add-btn px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400" data-points="10">10 نقاط</button>
+                    <button type="button" class="quick-add-btn px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400" data-points="15">15 نقطة</button>
+                    <button type="button" class="quick-add-btn px-4 py-2 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-400" data-points="20">20 نقطة</button>
+                    <input type="number" name="point_amount" id="point_amount" placeholder="أو أدخل يدوياً" min="1" required class="flex-1 px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right">
+                </div>
+            </div>
+
+            <input type="hidden" name="operation" id="operation-input">
+
+            <div class="mt-8 text-left">
+                <button type="submit" id="submit-points-btn" class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-all" disabled>
+                    تطبيق النقاط
+                </button>
+            </div>
+        </form>
     </div>
+
+    <div class="bg-white p-6 rounded-xl shadow-lg">
+        <h2 class="text-2xl font-semibold mb-4 text-gray-800 border-b pb-4">قائمة الطلاب والنقاط</h2>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-gray-200 text-right">
+                <thead class="bg-gray-50">
+                    <tr>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">#</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الطالب</th>
+                        <th class="px-6 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">النقاط</th>
+                    </tr>
+                </thead>
+                <tbody class="bg-white divide-y divide-gray-200">
+                    {% for student in students %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-200">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-gray-700">{{ loop.index }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ student.student_name }}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-lg font-semibold text-blue-700">{{ student.points }}</td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="3" class="text-center py-6 text-gray-500">لم تتم إضافة أي طالب بعد.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script>
+        const addPointsBtn = document.getElementById('add-points-btn');
+        const removePointsBtn = document.getElementById('remove-points-btn');
+        const pointAmountInput = document.getElementById('point_amount');
+        const operationInput = document.getElementById('operation-input');
+        const submitPointsBtn = document.getElementById('submit-points-btn');
+        const quickAddButtons = document.querySelectorAll('.quick-add-btn');
+
+        // Function to update the submit button state (disabled/enabled)
+        function updateSubmitButtonState() {
+            const studentSelected = document.getElementById('student_id').value !== '';
+            const amountEntered = pointAmountInput.value.trim() !== '' && parseInt(pointAmountInput.value) > 0;
+            const operationSelected = operationInput.value !== '';
+
+            if (studentSelected && amountEntered && operationSelected) {
+                submitPointsBtn.disabled = false;
+                submitPointsBtn.classList.remove('bg-gray-400', 'hover:bg-gray-500');
+                submitPointsBtn.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            } else {
+                submitPointsBtn.disabled = true;
+                submitPointsBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                submitPointsBtn.classList.add('bg-gray-400', 'hover:bg-gray-500');
+            }
+        }
+
+        // Event listeners for Add/Remove buttons
+        addPointsBtn.addEventListener('click', () => {
+            operationInput.value = 'add';
+            addPointsBtn.classList.add('bg-green-700'); // Darker green when active
+            removePointsBtn.classList.remove('bg-red-700'); // Remove darker red if it was active
+            updateSubmitButtonState();
+        });
+
+        removePointsBtn.addEventListener('click', () => {
+            operationInput.value = 'remove';
+            removePointsBtn.classList.add('bg-red-700'); // Darker red when active
+            addPointsBtn.classList.remove('bg-green-700'); // Remove darker green if it was active
+            updateSubmitButtonState();
+        });
+
+        // Event listener for quick add buttons
+        quickAddButtons.forEach(button => {
+            button.addEventListener('click', () => {
+                pointAmountInput.value = button.dataset.points;
+                updateSubmitButtonState();
+            });
+        });
+
+        // Event listener for manual input change
+        pointAmountInput.addEventListener('input', updateSubmitButtonState);
+
+        // Event listener for student selection change
+        document.getElementById('student_id').addEventListener('change', updateSubmitButtonState);
+
+
+        // Initial state check when the page loads
+        updateSubmitButtonState();
+
+        // Prevent double submission
+        const pointsForm = document.getElementById('points-form');
+        if (pointsForm) {
+            pointsForm.addEventListener('submit', () => {
+                submitPointsBtn.disabled = true;
+                submitPointsBtn.textContent = 'جاري المعالجة...'; // "Processing..."
+            });
+        }
+    </script>
 {% endblock %}
