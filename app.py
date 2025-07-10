@@ -2,6 +2,7 @@ import sqlite3
 import csv
 import io
 import re
+import os # Import the os module
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 import datetime
 
@@ -10,13 +11,22 @@ app = Flask(__name__)
 app.secret_key = 'your_super_secret_key_12345'
 app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$') # Syrian phone format
 
+# Define the path to the database folder
+# This creates a path like 'your_project/databases/students.db'
+DATABASE_FOLDER = os.path.join(app.root_path, 'databases') # Use app.root_path for reliable directory
+DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'students.db')
+
 # --- Database Functions ---
 def get_db_connection():
-    conn = sqlite3.connect('students.db')
+    # Ensure the database folder exists before connecting
+    os.makedirs(DATABASE_FOLDER, exist_ok=True)
+    conn = sqlite3.connect(DATABASE_FILE) # Connect to the specified path
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
+    # Ensure the database folder exists before creating the DB file
+    os.makedirs(DATABASE_FOLDER, exist_ok=True)
     with get_db_connection() as conn:
         conn.execute('DROP TABLE IF EXISTS students')
         conn.execute('''
@@ -37,6 +47,7 @@ def init_db():
                 points INTEGER DEFAULT 0 NOT NULL
             )
         ''')
+        # Add indexes for faster search
         conn.execute('CREATE INDEX idx_student_name ON students(student_name)')
         conn.execute('CREATE INDEX idx_parent_name ON students(parent_name)')
     print("Database initialized with schema constraints and indexes")
