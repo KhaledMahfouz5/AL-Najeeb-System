@@ -5,6 +5,7 @@ import re
 import os
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 import datetime
+from typing import Any
 
 # --- App Setup ---
 app = Flask(__name__)
@@ -57,7 +58,7 @@ def init_db_command():
 def validate_phone(phone):
     return bool(app.config['PHONE_REGEX'].match(phone)) if phone else True
 
-def validate_student_data(form_data, is_csv=False):
+def validate_student_data(form_data):
     errors = []
     required_fields = ['student_name', 'age', 'parent_name',
                        'parent_phone_1', 'grade', 'school_name',
@@ -162,7 +163,7 @@ def add_student():
     return redirect(url_for('index'))
 
 @app.route('/modify_student/<int:student_id>', methods=['GET', 'POST'])
-def modify_student(student_id):
+def modify_student(student_id) -> Any :
     if request.method == 'GET':
         try:
             with get_db_connection() as conn:
@@ -270,7 +271,7 @@ def import_csv():
         flash('لم يتم اختيار ملف', 'warning')
         return redirect(url_for('index'))
 
-    if not file.filename.lower().endswith('.csv'):
+    if not str(file.filename).lower().endswith('.csv'):
         flash('صيغة الملف غير مدعومة. يجب أن يكون CSV', 'danger')
         return redirect(url_for('index'))
 
@@ -305,7 +306,7 @@ def import_csv():
             if not student_data['registration_date']:
                 student_data['registration_date'] = datetime.date.today().isoformat()
 
-            errors = validate_student_data(student_data, is_csv=True)
+            errors = validate_student_data(student_data)
             if errors:
                 row_errors.append(f'السطر {i}: {"; ".join(errors)}')
                 continue
@@ -356,7 +357,7 @@ def import_csv():
 
 @app.route('/download_csv_template')
 def download_csv_template():
-    return send_from_directory(app.template_folder, 'template.csv', as_attachment=True)
+    return send_from_directory('templates', 'template.csv', as_attachment=True)
 
 @app.route('/record')
 def record():
