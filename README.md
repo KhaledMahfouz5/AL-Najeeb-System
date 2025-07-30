@@ -1,10 +1,10 @@
-# Student Management System
+# AL Najeeb System
 
 ---
 
 ## Introduction
 
-The Student Management System is a simple web application built with the **Flask** framework in Python, utilizing **SQLite** as its database. This application allows users to manage student information, including personal data, contact details, memorization progress, and a points tracking system. The frontend is built with **Tailwind CSS** for a clean and responsive user experience.
+AL Najeeb System is a simple web application built with the **Flask** framework in Python, utilizing **SQLite** as its database. This application allows users to manage student information, including personal data, contact details, memorization progress, and a points tracking system. The frontend is built with **Tailwind CSS** for a clean and responsive user experience.
 
 ---
 
@@ -64,7 +64,7 @@ Updating the application involves pulling the latest code, updating dependencies
 2.  **Update the Code:**
     Ensure you are in your project directory and pull the latest changes from your Git repository:
     ```bash
-    git pull origin main # or your specific branch name
+    git pull
     ```
 
 3.  **Activate the Virtual Environment:**
@@ -83,7 +83,7 @@ Updating the application involves pulling the latest code, updating dependencies
 
 5.  **Update the Database (Important):**
     **This is the most critical and sensitive step when updating an application that uses an SQLite database.**
-    Since we are not using a dedicated database migration tool (like Flask-Migrate / Alembic), database schema updates must be handled manually.
+    Since I still not using a dedicated database migration tool (like Flask-Migrate / Alembic), database schema updates must be handled manually.
     * The safest method without a migration tool is to:
             1.  **Backup your current data:** Copy your `databases/students.db` file to a safe, external location.
                 ```bash
