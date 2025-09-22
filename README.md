@@ -101,3 +101,6 @@ Updating the application involves pulling the latest code, updating dependencies
     ./serve.sh
     ```
 ---
+
+## Links
+- favicon : `<a href="https://www.flaticon.com/free-icons/study-program" title="study program icons">Study program icons created by Triangle Squad - Flaticon</a>`
