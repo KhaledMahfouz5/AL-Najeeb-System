@@ -1,31 +1,195 @@
 {% extends 'template.html' %}
 
-{% block title %}تسجيل حضور أو حفظ{% endblock %}
+{% block title %}تسجيل حضور وحفظ المحفوظات{% endblock %}
 
 {% block content %}
-    <header class="text-center"> {# Removed mb-8 from header, now handled by h1 and nav #}
-        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">تسجيل حضور الطلاب وحفظ المحفوظات</h1> {# Added mb-6 for spacing below title #}
-        {# Navigation Bar - More Eye-Attractive Styling #}
-        <nav class="mb-8"> {# Kept mb-8 for space below nav #}
-            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex"> {# Added padding, background, rounded corners, shadow, and inline-flex for better alignment #}
+    <header class="text-center">
+        <h1 class="text-3xl sm:text-4xl font-bold text-gray-900 mb-6">نظام متابعة الحضور والإنجاز</h1>
+        <nav class="mb-8">
+            <ul class="flex justify-center space-x-4 space-x-reverse bg-white p-2 rounded-full shadow-lg inline-flex">
                 <li>
-                    {# Inactive link styling #}
                     <a href="{{ url_for('index') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">الصفحة الرئيسية</a>
                 </li>
                 <li>
-                    {# Active link styling #}
                     <a href="{{ url_for('record') }}" class="text-white bg-blue-600 hover:bg-blue-700 font-semibold px-6 py-3 rounded-full transition-all duration-300 ease-in-out shadow-md">تسجيل حضور أو حفظ</a>
                 </li>
                 <li>
-                    {# Inactive link styling #}
                     <a href="{{ url_for('points') }}" class="text-gray-700 hover:text-blue-700 hover:bg-blue-50 font-medium px-6 py-3 rounded-full transition-all duration-300 ease-in-out hover:shadow-sm transform hover:scale-105">النقاط</a>
                 </li>
             </ul>
         </nav>
     </header>
 
+    <!-- Attendance Recording Section -->
     <div class="bg-white p-8 rounded-xl shadow-lg mb-8">
-        <p class="text-gray-600 text-center">هذه صفحة لتسجيل حضور الطلاب وتحديث تقدمهم في حفظ المحفوظات.</p>
-        {# Content for attendance/memorization recording will go here #}
+        <h2 class="text-2xl font-semibold mb-6 text-gray-800 border-b pb-4">تسجيل حضور وإنجاز اليوم</h2>
+        
+        <form id="attendance-form" action="{{ url_for('record') }}" method="POST">
+            <input type="hidden" name="lesson_date" value="{{ today }}">
+            
+            <div class="mb-6">
+                <label for="search_student_input" class="block text-sm font-medium text-gray-700 mb-2">ابحث عن طالب</label>
+                <input type="text" id="search_student_input" placeholder="اكتب اسم الطالب للبحث..."
+                       class="w-full px-4 py-2 border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-right" dir="rtl">
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200 text-right">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                <input type="checkbox" id="select_all_attendance" class="h-4 w-4 text-blue-600">
+                            </th>
+                            <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">اسم الطالب</th>
+                            <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">نسبة الحضور</th>
+                            <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">الصفحات المنجزة</th>
+                            <th class="px-4 py-3 text-xs font-medium text-gray-500 uppercase tracking-wider">صفحات اليوم</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200" id="attendance-table-body">
+                        {% for student in students %}
+                        <tr class="hover:bg-gray-50 transition-colors duration-200 student-row" data-student-name="{{ student.student_name }}">
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <input type="checkbox" name="attended" value="{{ student.id }}" 
+                                       class="attendance-checkbox h-4 w-4 text-blue-600" checked>
+                                <input type="hidden" name="student_id" value="{{ student.id }}">
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <span class="text-sm font-medium text-gray-900">{{ student.student_name }}</span>
+                                    <span class="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">{{ student.points }} نقاط</span>
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <div class="flex items-center">
+                                    <div class="w-full bg-gray-200 rounded-full h-2.5">
+                                        <div class="bg-green-600 h-2.5 rounded-full" 
+                                             style="width: {{ student.attendance_percentage }}%"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-600 mr-2">{{ student.attendance_percentage }}%</span>
+                                </div>
+                                <div class="text-xs text-gray-500 mt-1">
+                                    {{ student.lessons_attended }} من {{ student.total_lessons }} درس
+                                </div>
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap text-sm text-gray-600">
+                                <span class="font-semibold text-green-600">{{ student.total_pages }}</span> صفحة
+                            </td>
+                            <td class="px-4 py-4 whitespace-nowrap">
+                                <input type="number" name="pages_completed" value="0" min="0" max="20"
+                                       class="pages-input w-20 px-2 py-1 border border-gray-300 rounded text-center"
+                                       data-student-id="{{ student.id }}">
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center py-6 text-gray-500">
+                                لم تتم إضافة أي طالب بعد. 
+                                <a href="{{ url_for('index') }}" class="text-blue-600 hover:underline">أضف طلاباً أولاً</a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="mt-8 text-center">
+                <button type="submit" id="submit-attendance-btn" 
+                        class="px-8 py-3 bg-blue-600 text-white font-semibold rounded-lg shadow-md hover:bg-blue-700 transition-all"
+                        {% if not students %}disabled{% endif %}>
+                    <i class="fas fa-save ml-2"></i>حفظ الحضور والإنجاز
+                </button>
+            </div>
+        </form>
     </div>
+
+    <script>
+        // Today's date for the lesson date input
+        const today = new Date().toISOString().split('T')[0];
+        document.querySelector('input[name="lesson_date"]').value = today;
+
+        // Search functionality
+        const searchInput = document.getElementById('search_student_input');
+        const studentRows = document.querySelectorAll('.student-row');
+        
+        searchInput.addEventListener('input', function() {
+            const searchTerm = this.value.trim().toLowerCase();
+            
+            studentRows.forEach(row => {
+                const studentName = row.getAttribute('data-student-name').toLowerCase();
+                if (studentName.includes(searchTerm)) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        });
+
+        // Select all functionality
+        const selectAllCheckbox = document.getElementById('select_all_attendance');
+        const attendanceCheckboxes = document.querySelectorAll('.attendance-checkbox');
+        
+        selectAllCheckbox.addEventListener('change', function() {
+            attendanceCheckboxes.forEach(checkbox => {
+                if (checkbox.closest('tr').style.display !== 'none') {
+                    checkbox.checked = this.checked;
+                }
+            });
+        });
+
+        // Quick select all button
+        document.getElementById('quick-select-all').addEventListener('click', function() {
+            attendanceCheckboxes.forEach(checkbox => {
+                if (checkbox.closest('tr').style.display !== 'none') {
+                    checkbox.checked = true;
+                }
+            });
+            selectAllCheckbox.checked = true;
+        });
+
+        // Quick set pages button
+        document.getElementById('quick-set-pages').addEventListener('click', function() {
+            document.querySelectorAll('.pages-input').forEach(input => {
+                if (input.closest('tr').style.display !== 'none') {
+                    input.value = '1';
+                }
+            });
+        });
+
+        // Update select all checkbox when individual checkboxes change
+        attendanceCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', function() {
+                const visibleCheckboxes = Array.from(attendanceCheckboxes).filter(cb => 
+                    cb.closest('tr').style.display !== 'none'
+                );
+                const allChecked = visibleCheckboxes.every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            });
+        });
+
+        // Form submission handling
+        document.getElementById('attendance-form').addEventListener('submit', function() {
+            const submitBtn = document.getElementById('submit-attendance-btn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin ml-2"></i>جاري الحفظ...';
+        });
+    </script>
+
+    <style>
+        .pages-input:focus {
+            border-color: #3b82f6;
+            ring: 2px;
+            ring-color: #3b82f6;
+        }
+        
+        .attendance-checkbox:checked {
+            background-color: #10b981;
+            border-color: #10b981;
+        }
+        
+        .student-row:hover {
+            transform: translateY(-1px);
+            transition: all 0.2s ease;
+        }
+    </style>
 {% endblock %}

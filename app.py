@@ -16,11 +16,14 @@ app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$') # Syrian phone format
 DATABASE_FOLDER = os.path.join(app.root_path, 'databases')
 DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'students.db')
 
-# --- Database Functions ---
+# --- Improved Database Functions ---
 def get_db_connection():
     os.makedirs(DATABASE_FOLDER, exist_ok=True)
-    conn = sqlite3.connect(DATABASE_FILE)
+    conn = sqlite3.connect(DATABASE_FILE, timeout=30)  # Increase timeout to 30 seconds
     conn.row_factory = sqlite3.Row
+    # Enable WAL mode for better concurrency
+    conn.execute('PRAGMA journal_mode=WAL')
+    conn.execute('PRAGMA busy_timeout=30000')  # 30 second timeout
     return conn
 
 def init_db():
@@ -47,7 +50,46 @@ def init_db():
         ''')
         conn.execute('CREATE INDEX idx_student_name ON students(student_name)')
         conn.execute('CREATE INDEX idx_parent_name ON students(parent_name)')
-    print("Database initialized with schema constraints and indexes")
+
+        # NEW: Create lessons table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS lessons (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                lesson_date TEXT NOT NULL,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+
+        # NEW: Create attendance table
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS attendance (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                student_id INTEGER NOT NULL,
+                lesson_id INTEGER NOT NULL,
+                pages_completed INTEGER DEFAULT 0,
+                attended BOOLEAN DEFAULT 1,
+                FOREIGN KEY (student_id) REFERENCES students (id) ON DELETE CASCADE,
+                FOREIGN KEY (lesson_id) REFERENCES lessons (id) ON DELETE CASCADE,
+                UNIQUE(student_id, lesson_id)
+            )
+        ''')
+
+        # NEW: Create settings table for global variables
+        conn.execute('''
+            CREATE TABLE IF NOT EXISTS settings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key_name TEXT UNIQUE NOT NULL,
+                key_value TEXT NOT NULL
+            )
+        ''')
+
+        # NEW: Initialize total lessons count if not exists
+        conn.execute('''
+            INSERT OR IGNORE INTO settings (key_name, key_value)
+            VALUES ('total_lessons', '0')
+        ''')
+
+    print("Database initialized with attendance system")
 
 @app.cli.command('init-db')
 def init_db_command():
@@ -359,10 +401,6 @@ def import_csv():
 def download_csv_template():
     return send_from_directory('templates', 'template.csv', as_attachment=True)
 
-@app.route('/record')
-def record():
-    return render_template('record.html')
-
 @app.route('/points', methods=['GET', 'POST'])
 def points():
     if request.method == 'POST':
@@ -465,6 +503,203 @@ def delete_student(student_id):
         flash(f'خطأ غير متوقع أثناء الحذف: {str(e)}', 'danger')
 
     return redirect(url_for('index'))
+
+@app.route('/record', methods=['GET', 'POST'])
+def record():
+    today = datetime.date.today().isoformat()
+
+    if request.method == 'POST':
+        # Handle form submission for attendance and pages
+        conn = None
+        try:
+            lesson_date = request.form.get('lesson_date')
+            if not lesson_date:
+                lesson_date = today
+
+            conn = get_db_connection()
+
+            # Start a transaction explicitly
+            conn.execute('BEGIN IMMEDIATE TRANSACTION')
+
+            # Create new lesson
+            lesson_result = conn.execute(
+                'INSERT INTO lessons (lesson_date) VALUES (?) RETURNING id',
+                (lesson_date,)
+            ).fetchone()
+            lesson_id = lesson_result['id']
+
+            # Process attendance for each student
+            student_ids = request.form.getlist('student_id')
+            attended_students = request.form.getlist('attended')
+            pages_data = request.form.getlist('pages_completed')
+
+            # Use executemany for better performance
+            attendance_data = []
+            for i, student_id in enumerate(student_ids):
+                attended = 1 if student_id in attended_students else 0
+                pages = pages_data[i] if i < len(pages_data) else '0'
+
+                try:
+                    pages_int = int(pages) if pages.strip() else 0
+                except ValueError:
+                    pages_int = 0
+
+                attendance_data.append((student_id, lesson_id, pages_int, attended))
+
+            if attendance_data:
+                conn.executemany('''
+                    INSERT OR REPLACE INTO attendance (student_id, lesson_id, pages_completed, attended)
+                    VALUES (?, ?, ?, ?)
+                ''', attendance_data)
+
+            # Update total lessons count
+            current_total = get_total_lessons(conn)
+            update_total_lessons(conn, current_total + 1)
+
+            # Commit the transaction
+            conn.commit()
+            flash('تم حفظ بيانات الحضور والإنجاز بنجاح!', 'success')
+
+        except sqlite3.OperationalError as e:
+            if conn:
+                conn.rollback()
+            if 'locked' in str(e):
+                flash('قاعدة البيانات مشغولة حالياً. الرجاء المحاولة مرة أخرى بعد بضع ثوانٍ.', 'danger')
+            else:
+                flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+        except Exception as e:
+            if conn:
+                conn.rollback()
+            flash(f'خطأ في حفظ البيانات: {str(e)}', 'danger')
+        finally:
+            if conn:
+                conn.close()
+
+        return redirect(url_for('record'))
+
+    else:  # GET request
+        students_data = []
+        conn = None
+
+        try:
+            conn = get_db_connection()
+            students_data = get_students_with_attendance(conn)
+
+        except Exception as e:
+            flash(f'خطأ في تحميل البيانات: {str(e)}', 'danger')
+            students_data = []
+        finally:
+            if conn:
+                conn.close()
+
+        return render_template('record.html', students=students_data, today=today)
+
+# Helper functions that accept connection as parameter
+def get_total_lessons(conn=None):
+    close_conn = False
+    if conn is None:
+        conn = get_db_connection()
+        close_conn = True
+
+    try:
+        result = conn.execute("SELECT key_value FROM settings WHERE key_name = 'total_lessons'").fetchone()
+        return int(result['key_value']) if result else 0
+    finally:
+        if close_conn:
+            conn.close()
+
+def update_total_lessons(conn, new_total):
+    conn.execute("UPDATE settings SET key_value = ? WHERE key_name = 'total_lessons'", (str(new_total),))
+
+def get_students_with_attendance(conn):
+    """Get students with their attendance statistics"""
+    students = conn.execute('''
+        SELECT s.id, s.student_name, s.points,
+               COUNT(a.id) as lessons_attended,
+               COALESCE(SUM(a.pages_completed), 0) as total_pages,
+               (SELECT key_value FROM settings WHERE key_name = 'total_lessons') as total_lessons
+        FROM students s
+        LEFT JOIN attendance a ON s.id = a.student_id AND a.attended = 1
+        GROUP BY s.id, s.student_name, s.points
+        ORDER BY s.student_name ASC
+    ''').fetchall()
+
+    students_data = []
+    for student in students:
+        total_lessons = int(student['total_lessons']) if student['total_lessons'] else 0
+        attendance_percentage = (student['lessons_attended'] / total_lessons * 100) if total_lessons > 0 else 0
+
+        students_data.append({
+            'id': student['id'],
+            'student_name': student['student_name'],
+            'points': student['points'],
+            'lessons_attended': student['lessons_attended'],
+            'total_pages': student['total_pages'],
+            'attendance_percentage': round(attendance_percentage, 1),
+            'total_lessons': total_lessons
+        })
+
+    return students_data
+
+# NEW: Route to add a lesson manually
+@app.route('/add_lesson', methods=['POST'])
+def add_lesson():
+    conn = None
+    try:
+        lesson_date = request.form.get('lesson_date', datetime.date.today().isoformat())
+
+        conn = get_db_connection()
+        conn.execute('BEGIN IMMEDIATE TRANSACTION')
+
+        # Create new lesson
+        conn.execute('INSERT INTO lessons (lesson_date) VALUES (?)', (lesson_date,))
+
+        # Update total lessons
+        current_total = get_total_lessons(conn)
+        update_total_lessons(conn, current_total + 1)
+
+        conn.commit()
+        flash('تم إضافة درس جديد بنجاح!', 'success')
+
+    except sqlite3.OperationalError as e:
+        if conn:
+            conn.rollback()
+        if 'locked' in str(e):
+            flash('قاعدة البيانات مشغولة حالياً. الرجاء المحاولة مرة أخرى بعد بضع ثوانٍ.', 'danger')
+        else:
+            flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
+    except Exception as e:
+        if conn:
+            conn.rollback()
+        flash(f'خطأ في إضافة الدرس: {str(e)}', 'danger')
+    finally:
+        if conn:
+            conn.close()
+
+    return redirect(url_for('record'))
+
+# NEW: Route to get attendance history for a student
+@app.route('/student_attendance/<int:student_id>')
+def student_attendance(student_id):
+    try:
+        with get_db_connection() as conn:
+            attendance_history = conn.execute('''
+                SELECT l.lesson_date, a.pages_completed, a.attended
+                FROM attendance a
+                JOIN lessons l ON a.lesson_id = l.id
+                WHERE a.student_id = ?
+                ORDER BY l.lesson_date DESC
+                LIMIT 20
+            ''', (student_id,)).fetchall()
+
+            student = conn.execute('SELECT student_name FROM students WHERE id = ?', (student_id,)).fetchone()
+
+            return render_template('student_attendance.html',
+                                 attendance_history=attendance_history,
+                                 student=student)
+    except Exception as e:
+        flash(f'خطأ في تحميل سجل الحضور: {str(e)}', 'danger')
+        return redirect(url_for('record'))
 
 if __name__ == '__main__':
     app.run(debug=True)
