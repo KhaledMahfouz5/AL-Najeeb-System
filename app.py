@@ -6,19 +6,32 @@ import os
 from flask import Flask, render_template, request, redirect, url_for, flash, send_from_directory
 import datetime
 from typing import Any
+from dotenv import load_dotenv
 
+load_dotenv()
 # --- App Setup ---
 app = Flask(__name__)
-app.secret_key = 'your_super_secret_key_12345'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY') or 'dev-secret-key'
 app.config['PHONE_REGEX'] = re.compile(r'^09\d{8}$') # Syrian phone format
 
 # Define the path to the database folder
-DATABASE_FOLDER = os.path.join(app.root_path, 'databases')
-DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'students.db')
+env_db_file = os.environ.get('DATABASE_FILE')
+env_db_folder = os.environ.get('DATABASE_FOLDER')
+
+if env_db_file:
+    DATABASE_FILE = env_db_file
+    DATABASE_FOLDER = os.path.dirname(DATABASE_FILE) or os.path.join(app.root_path, 'databases')
+elif env_db_folder:
+    DATABASE_FOLDER = env_db_folder
+    DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'students.db')
+else:
+    DATABASE_FOLDER = os.path.join(app.root_path, 'databases')
+    DATABASE_FILE = os.path.join(DATABASE_FOLDER, 'students.db')
 
 # --- Improved Database Functions ---
 def get_db_connection():
-    os.makedirs(DATABASE_FOLDER, exist_ok=True)
+    db_dir = os.path.dirname(DATABASE_FILE) or DATABASE_FOLDER
+    os.makedirs(db_dir, exist_ok=True)
     conn = sqlite3.connect(DATABASE_FILE, timeout=30)  # Increase timeout to 30 seconds
     conn.row_factory = sqlite3.Row
     # Enable WAL mode for better concurrency
@@ -641,43 +654,6 @@ def get_students_with_attendance(conn):
 
     return students_data
 
-# NEW: Route to add a lesson manually
-@app.route('/add_lesson', methods=['POST'])
-def add_lesson():
-    conn = None
-    try:
-        lesson_date = request.form.get('lesson_date', datetime.date.today().isoformat())
-
-        conn = get_db_connection()
-        conn.execute('BEGIN IMMEDIATE TRANSACTION')
-
-        # Create new lesson
-        conn.execute('INSERT INTO lessons (lesson_date) VALUES (?)', (lesson_date,))
-
-        # Update total lessons
-        current_total = get_total_lessons(conn)
-        update_total_lessons(conn, current_total + 1)
-
-        conn.commit()
-        flash('تم إضافة درس جديد بنجاح!', 'success')
-
-    except sqlite3.OperationalError as e:
-        if conn:
-            conn.rollback()
-        if 'locked' in str(e):
-            flash('قاعدة البيانات مشغولة حالياً. الرجاء المحاولة مرة أخرى بعد بضع ثوانٍ.', 'danger')
-        else:
-            flash(f'خطأ في قاعدة البيانات: {str(e)}', 'danger')
-    except Exception as e:
-        if conn:
-            conn.rollback()
-        flash(f'خطأ في إضافة الدرس: {str(e)}', 'danger')
-    finally:
-        if conn:
-            conn.close()
-
-    return redirect(url_for('record'))
-
 # NEW: Route to get attendance history for a student
 @app.route('/student_attendance/<int:student_id>')
 def student_attendance(student_id):
@@ -702,4 +678,4 @@ def student_attendance(student_id):
         return redirect(url_for('record'))
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()
