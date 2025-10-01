@@ -6,6 +6,8 @@
 
 AL Najeeb System is a simple web application built with the **Flask** framework in Python, utilizing **SQLite** as its database. This application allows users to manage student information, including personal data, contact details, memorization progress, and a points tracking system. The frontend is built with **Tailwind CSS** for a clean and responsive user experience.
 
+![Al Najeeb System Logo](logo.png)
+
 ---
 
 ## Installation and Running
@@ -100,7 +102,4 @@ Updating the application involves pulling the latest code, updating dependencies
     ```bash
     ./serve.sh
     ```
----
 
-## Links
-- favicon : `<a href="https://www.flaticon.com/free-icons/study-program" title="study program icons">Study program icons created by Triangle Squad - Flaticon</a>`
