@@ -2,6 +2,9 @@
 
 ---
 
+This repo is Still Here For Archival Purposes .. for new versions check 
+the gitpasha clone `https://app.gitpasha.com/khaledmahfouz5/AL-Najeeb-System` .
+
 ## Introduction
 
 AL Najeeb System is a simple web application built with the **Flask** framework in Python, utilizing **SQLite** as its database. This application allows users to manage student information, including personal data, contact details, memorization progress, and a points tracking system. The frontend is built with **Tailwind CSS** for a clean and responsive user experience.
